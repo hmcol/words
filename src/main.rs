@@ -6,8 +6,6 @@ mod words;
 
 // -----------------------------------------------------------------------------
 
-
-
 fn main() {
     colog::basic_builder()
         .filter(None, log::LevelFilter::Debug)
@@ -18,13 +16,10 @@ fn main() {
 
     wl.log_stats();
 
-    let filtered_words = wl.find_with_only_letters("least");
+    let filtered_words = wl.find_scrabble_simple("least");
 
     // debug output filtered_words
-    println!(
-        "found {} words made of 'least' allowing repeats",
-        filtered_words.clone().len(),
-    );
+    println!("found {} words", filtered_words.clone().len(),);
 
     for word in filtered_words {
         println!("{}", word);
@@ -41,5 +36,3 @@ fn main() {
 // - has_letter(letter)
 // - has_letters(letters)
 // - made_of(letters) = word contains all the given letters and only those letters (with and without repeats) in other words, the word is a permutation/anagram of the given letters. this is good for scrabble and anagrams and anything where you have a specific bank of letters to use
-
-

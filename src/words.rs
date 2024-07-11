@@ -41,6 +41,7 @@ impl WordList {
 
     // -------------------------------------------------------------------------
 
+
     /// Find words that are spelled using only the given letters, repeat letters allowed
     /// 
     /// given `letters` a "set" of letters, we only require that each letter of the word is in `letters`
@@ -56,4 +57,28 @@ impl WordList {
 
         self.words.iter().filter(|word| is_valid(word)).collect()
     }
+
+    /// Find words that could be played given a set of tiles in a scrabble game
+    /// 
+    /// `tiles` must be a string containing only letters and possibly question marks to represent blank tiles
+    pub fn find_scrabble_simple(&self, tiles: &str) -> Vec<&String> {
+        let is_valid = move |word: &String| -> bool {
+            let mut tiles = tiles.to_string();
+
+            for l in word.chars() {
+                if let Some(pos) = tiles.find(l) {
+                    tiles.remove(pos);
+                } else if let Some(pos) = tiles.find('?') {
+                    tiles.remove(pos);
+                } else {
+                    return false;
+                }
+            }
+
+            true
+        };
+
+        self.words.iter().filter(|word| is_valid(word)).collect()
+    }
+
 }
