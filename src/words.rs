@@ -1,15 +1,31 @@
-pub struct WordList {
-    pub words: Vec<String>,
+use crate::filter::WordFilter;
+
+#[derive(Debug)]
+pub struct WordFinder {
+    pub word_list: Vec<String>,
+    pub filters: Vec<WordFilter>,
 }
 
-impl WordList {
-    pub fn from_file(file_path: &str) -> WordList {
+impl Default for WordFinder {
+    fn default() -> Self {
+        let mut wf = Self::from_file("./lists/dictionary.txt");
+
+        wf.add_filter(WordFilter::Length(5));
+        wf.add_filter(WordFilter::StartsWith("ph".to_string()));
+
+        wf
+    }
+
+}
+
+impl WordFinder {
+    pub fn from_file(file_path: &str) -> WordFinder {
         let file = std::fs::read_to_string(file_path).expect("failed to read file");
 
         let words = file
-            .split_whitespace()                                 // assume one word per line
-            .map(|w| w.to_string().to_lowercase())              // convert to lowercase
-            .filter(|w| w.chars().all(|c| c.is_alphabetic()))   // only alphabetic
+            .split_whitespace() // assume one word per line
+            .map(|w| w.to_string().to_lowercase()) // convert to lowercase
+            .filter(|w| w.chars().all(|c| c.is_alphabetic())) // only alphabetic
             .collect::<Vec<String>>();
 
         let mut info_string = format!("found {} words in file {}", words.len(), file_path);
@@ -22,11 +38,14 @@ impl WordList {
 
         log::info!("{}", info_string);
 
-        WordList { words }
+        WordFinder {
+            word_list: words,
+            filters: Vec::new(),
+        }
     }
 
     pub fn log_stats(&self) {
-        let word_lengths: Vec<usize> = self.words.iter().map(|word| word.len()).collect();
+        let word_lengths: Vec<usize> = self.word_list.iter().map(|word| word.len()).collect();
 
         let mut length_counts = std::collections::HashMap::new();
 
@@ -42,8 +61,15 @@ impl WordList {
 
     // -------------------------------------------------------------------------
 
-    pub fn find(&self, predicate: impl Fn(&String) -> bool) -> Vec<&String> {
-        self.words.iter().filter(|word| predicate(word)).collect()
+    pub fn add_filter(&mut self, filter: WordFilter) {
+        self.filters.push(filter);
+    }
+
+    pub fn get_filtered_words(&self) -> Vec<&String> {
+        self.word_list
+            .iter()
+            .filter(|word| self.filters.iter().all(|f| f.matches(word)))
+            .collect()
     }
 
     /// Find words that are spelled using only the given letters, repeat letters allowed
@@ -59,7 +85,10 @@ impl WordList {
             true
         };
 
-        self.words.iter().filter(|word| is_valid(word)).collect()
+        self.word_list
+            .iter()
+            .filter(|word| is_valid(word))
+            .collect()
     }
 
     /// Find words that could be played given a set of tiles in a scrabble game
@@ -82,34 +111,10 @@ impl WordList {
             true
         };
 
-        self.words.iter().filter(|word| is_valid(word)).collect()
-    }
-
-    pub fn find_starts_with(&self, prefix: &str) -> Vec<&String> {
-        self.words
+        self.word_list
             .iter()
-            .filter(|word| word.starts_with(prefix))
-            .collect()
-    }
-
-    pub fn find_ends_with(&self, suffix: &str) -> Vec<&String> {
-        self.words
-            .iter()
-            .filter(|word| word.ends_with(suffix))
-            .collect()
-    }
-
-    pub fn find_contains(&self, substring: &str) -> Vec<&String> {
-        self.words
-            .iter()
-            .filter(|word| word.contains(substring))
-            .collect()
-    }
-
-    pub fn find_length(&self, length: usize) -> Vec<&String> {
-        self.words
-            .iter()
-            .filter(|word| word.len() == length)
+            .filter(|word| is_valid(word))
             .collect()
     }
 }
+
