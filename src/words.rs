@@ -2,6 +2,7 @@ use crate::filter::WordFilter;
 
 #[derive(Debug)]
 pub struct WordFinder {
+    pub file_path: String,
     pub word_list: Vec<String>,
     pub filters: Vec<WordFilter>,
 }
@@ -10,7 +11,7 @@ impl Default for WordFinder {
     fn default() -> Self {
         let mut wf = Self::from_file("./lists/dictionary.txt");
 
-        wf.add_filter(WordFilter::Length(5));
+        // wf.add_filter(WordFilter::Length(5));
         wf.add_filter(WordFilter::StartsWith("ph".to_string()));
 
         wf
@@ -28,17 +29,18 @@ impl WordFinder {
             .filter(|w| w.chars().all(|c| c.is_alphabetic())) // only alphabetic
             .collect::<Vec<String>>();
 
-        let mut info_string = format!("found {} words in file {}", words.len(), file_path);
+        // let mut info_string = format!("found {} words in file {}", words.len(), file_path);
 
-        for word in words.iter().take(10) {
-            info_string.push_str(&format!("\n{:?}", word));
-        }
+        // for word in words.iter().take(10) {
+        //     info_string.push_str(&format!("\n{:?}", word));
+        // }
 
-        info_string.push_str("\n...");
+        // info_string.push_str("\n...");
 
-        log::info!("{}", info_string);
+        // log::info!("{}", info_string);
 
         WordFinder {
+            file_path: file_path.to_string(),
             word_list: words,
             filters: Vec::new(),
         }
@@ -70,6 +72,10 @@ impl WordFinder {
             .iter()
             .filter(|word| self.filters.iter().all(|f| f.matches(word)))
             .collect()
+    }
+
+    pub fn iter_filtered_words(&self) -> impl Iterator<Item = &String> {
+        self.word_list.iter().filter(move |word| self.filters.iter().all(|f| f.matches(word)))
     }
 
     /// Find words that are spelled using only the given letters, repeat letters allowed

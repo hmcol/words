@@ -3,7 +3,13 @@ use log::info;
 use ratatui::layout::Constraint;
 use ratatui::layout::Direction;
 use ratatui::layout::Layout;
+use ratatui::style::Modifier;
+use ratatui::style::Style;
+use ratatui::text::ToLine;
 use ratatui::widgets::Borders;
+use ratatui::widgets::List;
+use ratatui::widgets::ListState;
+use ratatui::widgets::StatefulWidget;
 use ratatui::{
     buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
@@ -22,9 +28,9 @@ use std::io;
 
 // -----------------------------------------------------------------------------
 
+mod filter;
 mod tui;
 mod words;
-mod filter;
 
 // =============================================================================
 
@@ -60,6 +66,9 @@ pub struct App {
     counter: u8,
     exit: bool,
     finder: words::WordFinder,
+    word_list_state: ListState,
+    filter_list_state: ListState,
+    selection: bool,
 }
 
 impl App {
@@ -72,7 +81,7 @@ impl App {
         Ok(())
     }
 
-    fn render_frame(&self, frame: &mut Frame) {
+    fn render_frame(&mut self, frame: &mut Frame) {
         frame.render_widget(self, frame.size())
     }
 
@@ -91,8 +100,10 @@ impl App {
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
             KeyCode::Char('q') => self.exit(),
-            KeyCode::Left => self.decrement_counter(),
-            KeyCode::Right => self.increment_counter(),
+            KeyCode::Left => self.handle_left_arrow(),
+            KeyCode::Right => self.handle_right_arrow(),
+            KeyCode::Down => self.handle_down_arrow(),
+            KeyCode::Up => self.handle_up_arrow(),
             _ => {}
         }
     }
@@ -101,28 +112,37 @@ impl App {
         self.exit = true;
     }
 
-    fn increment_counter(&mut self) {
-        self.counter += 1;
+    fn handle_right_arrow(&mut self) {
+        self.selection = !self.selection;
     }
 
-    fn decrement_counter(&mut self) {
-        self.counter -= 1;
+    fn handle_left_arrow(&mut self) {
+        self.selection = !self.selection;
+    }
+
+    fn handle_down_arrow(&mut self) {
+        if self.selection {
+            self.filter_list_state.select_next();
+        } else {
+            self.word_list_state.select_next();
+        }
+    }
+
+    fn handle_up_arrow(&mut self) {
+        if self.selection {
+            self.filter_list_state.select_previous();
+        } else {
+            self.word_list_state.select_previous();
+        }
     }
 }
 
-impl Widget for &App {
+impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         // outer border and title
         let title = Title::from(" Word Finder ".bold());
 
-        let instructions = Title::from(Line::from(vec![
-            " Decrement ".into(),
-            "<Left>".blue().bold(),
-            " Increment ".into(),
-            "<Right>".blue().bold(),
-            " Quit ".into(),
-            "<Q> ".blue().bold(),
-        ]));
+        let instructions = Title::from(Line::from(vec![" <Q> ".blue().bold(), " Quit ".into()]));
 
         let block = Block::bordered()
             .title(title.alignment(Alignment::Center))
@@ -146,36 +166,55 @@ impl Widget for &App {
 
         // path to word list
 
-        let path_text = Line::from(vec!["Word List: ".into(), "data/words_alpha.txt".yellow()]);
+        let path_text = Line::from(vec![
+            " Word List: ".into(),
+            self.finder.file_path.clone().yellow(),
+        ]);
 
         Paragraph::new(path_text)
             .block(Block::new().borders(Borders::BOTTOM))
             .render(layout[0], buf);
 
-        // path_text.render(layout[0], buf);
-
         // lower area
 
-        let sublayout = Layout::default()
+        let [left_pane, right_pane] = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
-            .split(layout[1]);
+            .areas(layout[1]);
 
+        self.render_words_list(left_pane, buf);
+        self.render_filter_list(right_pane, buf);
+    }
+}
 
-        let left_text = Text::from(vec![
-            Line::from(vec![" apple".into()]),
-            Line::from(vec![" banana".into()]),
-            Line::from(vec![" cherry".into()]),
-            Line::from(vec![" date".into()]),
-            Line::from(vec![" elderberry".into()])
-        ]);
+impl App {
+    fn render_words_list(&mut self, area: Rect, buf: &mut Buffer) {
+        let words: Vec<Line> = self
+            .finder
+            .iter_filtered_words()
+            .map(|w| w.to_line().magenta())
+            .collect();
 
-        Paragraph::new(left_text)
-            .block(Block::new().borders(Borders::RIGHT))
-            .render(sublayout[0], buf);
+        let mut list = List::new(words).block(Block::bordered().title("Found Words"));
 
-        let right_text = Text::from(vec![Line::from(vec!["Look at me im on the right".into()])]);
+        if !self.selection {
+            list = list.highlight_style(Style::new().add_modifier(Modifier::REVERSED));
+        }
 
-        right_text.render(sublayout[1], buf);
+        StatefulWidget::render(list, area, buf, &mut self.word_list_state);
+    }
+
+    fn render_filter_list(&mut self, area: Rect, buf: &mut Buffer) {
+        let mut filters: Vec<String> = self.finder.filters.iter().map(|f| f.to_string()).collect();
+
+        filters.push("+ Add Filter".to_string());
+
+        let mut list = List::new(filters).block(Block::bordered().title("Filters"));
+
+        if self.selection {
+            list = list.highlight_style(Style::new().add_modifier(Modifier::REVERSED));
+        }
+
+        StatefulWidget::render(list, area, buf, &mut self.filter_list_state);
     }
 }

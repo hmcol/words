@@ -46,4 +46,15 @@ impl WordFilter {
             }
         }
     }
+
+    pub fn to_string(&self) -> String {
+        match self {
+            WordFilter::Length(len) => format!("Length: {}", len),
+            WordFilter::StartsWith(prefix) => format!("Starts with: {}", prefix),
+            WordFilter::EndsWith(suffix) => format!("Ends with: {}", suffix),
+            WordFilter::Contains(substring) => format!("Contains: {}", substring),
+            WordFilter::UsingLetters(letters) => format!("Using letters: {}", letters),
+            WordFilter::ScrabblePlayable(tiles) => format!("Scrabble playable: {}", tiles),
+        }
+    }
 }
