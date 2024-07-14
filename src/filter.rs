@@ -47,14 +47,64 @@ impl WordFilter {
         }
     }
 
-    pub fn to_string(&self) -> String {
+    pub fn get_name(&self) -> String {
         match self {
-            WordFilter::Length(len) => format!("Length: {}", len),
-            WordFilter::StartsWith(prefix) => format!("Starts with: {}", prefix),
-            WordFilter::EndsWith(suffix) => format!("Ends with: {}", suffix),
-            WordFilter::Contains(substring) => format!("Contains: {}", substring),
-            WordFilter::UsingLetters(letters) => format!("Using letters: {}", letters),
-            WordFilter::ScrabblePlayable(tiles) => format!("Scrabble playable: {}", tiles),
+            WordFilter::Length(_) => "Length",
+            WordFilter::StartsWith(_) => "Starts with",
+            WordFilter::EndsWith(_) => "Ends with",
+            WordFilter::Contains(_) => "Contains",
+            WordFilter::UsingLetters(_) => "Using letters",
+            WordFilter::ScrabblePlayable(_) => "Scrabble playable",
+        }
+        .to_string()
+    }
+
+    pub fn get_string(&self) -> String {
+        match self {
+            WordFilter::Length(len) => len.to_string(),
+            WordFilter::StartsWith(prefix) => prefix.to_string(),
+            WordFilter::EndsWith(suffix) => suffix.to_string(),
+            WordFilter::Contains(substring) => substring.to_string(),
+            WordFilter::UsingLetters(letters) => letters.to_string(),
+            WordFilter::ScrabblePlayable(tiles) => tiles.to_string(),
+        }
+    }
+
+    pub fn update(&mut self, s: &str) {
+        match self {
+            WordFilter::Length(len) => {
+                if let Ok(len2) = s.parse() {
+                    *len = len2;
+                }
+            }
+            WordFilter::StartsWith(prefix) => {
+                *prefix = s.to_string();
+            }
+            WordFilter::EndsWith(suffix) => {
+                *suffix = s.to_string();
+            }
+            WordFilter::Contains(substring) => {
+                *substring = s.to_string();
+            }
+            WordFilter::UsingLetters(letters) => {
+                *letters = s.to_string();
+            }
+            WordFilter::ScrabblePlayable(tiles) => {
+                *tiles = s.to_string();
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for WordFilter {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            WordFilter::Length(len) => write!(f, "Length: {}", len),
+            WordFilter::StartsWith(prefix) => write!(f, "Starts with: {}", prefix),
+            WordFilter::EndsWith(suffix) => write!(f, "Ends with: {}", suffix),
+            WordFilter::Contains(substring) => write!(f, "Contains: {}", substring),
+            WordFilter::UsingLetters(letters) => write!(f, "Using letters: {}", letters),
+            WordFilter::ScrabblePlayable(tiles) => write!(f, "Scrabble playable: {}", tiles),
         }
     }
 }

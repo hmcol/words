@@ -1,25 +1,15 @@
 use log::debug;
 use log::info;
-use ratatui::layout::Constraint;
-use ratatui::layout::Direction;
-use ratatui::layout::Layout;
-use ratatui::style::Modifier;
-use ratatui::style::Style;
-use ratatui::text::ToLine;
-use ratatui::widgets::Borders;
-use ratatui::widgets::List;
-use ratatui::widgets::ListState;
-use ratatui::widgets::StatefulWidget;
 use ratatui::{
     buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
-    layout::{Alignment, Rect},
-    style::Stylize,
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Modifier, Style, Stylize},
     symbols::border,
-    text::{Line, Text},
+    text::{Line, Text, ToLine},
     widgets::{
         block::{Position, Title},
-        Block, Paragraph, Widget,
+        Block, Borders, List, ListState, Paragraph, StatefulWidget, Widget,
     },
     Frame,
 };
@@ -69,6 +59,8 @@ pub struct App {
     word_list_state: ListState,
     filter_list_state: ListState,
     selection: bool,
+    input_mode: InputMode,
+    insert_state: InsertState,
 }
 
 impl App {
@@ -96,14 +88,71 @@ impl App {
         };
         Ok(())
     }
+}
 
+// key input handling ==========================================================
+
+#[derive(Debug, Default, PartialEq)]
+enum InputMode {
+    #[default]
+    Normal,
+    Insert,
+}
+
+#[derive(Debug, Default)]
+struct InsertState {
+    text: String,
+}
+
+impl InsertState {
+    fn new(text: &str) -> Self {
+        Self {
+            text: text.to_string(),
+        }
+    }
+
+    fn insert(&mut self, c: char) {
+        self.text.push(c);
+    }
+
+    fn backspace(&mut self) {
+        self.text.pop();
+    }
+}
+
+impl App {
     fn handle_key_event(&mut self, key_event: KeyEvent) {
+        match self.input_mode {
+            InputMode::Normal => self.handle_normal_mode(key_event),
+            InputMode::Insert => self.handle_insert_mode(key_event),
+        }
+    }
+
+    fn handle_normal_mode(&mut self, key_event: KeyEvent) {
         match key_event.code {
             KeyCode::Char('q') => self.exit(),
             KeyCode::Left => self.handle_left_arrow(),
             KeyCode::Right => self.handle_right_arrow(),
             KeyCode::Down => self.handle_down_arrow(),
             KeyCode::Up => self.handle_up_arrow(),
+            KeyCode::Enter => self.handle_enter(),
+            _ => {}
+        }
+    }
+
+    fn handle_insert_mode(&mut self, key_event: KeyEvent) {
+        match key_event.code {
+            KeyCode::Char(c) => {
+                self.insert_state.insert(c);
+                self.update_insertion();
+            }
+            KeyCode::Enter => {
+                self.input_mode = InputMode::Normal;
+            }
+            KeyCode::Backspace => {
+                self.insert_state.backspace();
+                self.update_insertion();
+            }
             _ => {}
         }
     }
@@ -121,6 +170,10 @@ impl App {
     }
 
     fn handle_down_arrow(&mut self) {
+        if self.input_mode != InputMode::Normal {
+            return;
+        }
+
         if self.selection {
             self.filter_list_state.select_next();
         } else {
@@ -129,13 +182,38 @@ impl App {
     }
 
     fn handle_up_arrow(&mut self) {
+        if self.input_mode != InputMode::Normal {
+            return;
+        }
+
         if self.selection {
             self.filter_list_state.select_previous();
         } else {
             self.word_list_state.select_previous();
         }
     }
+
+    fn handle_enter(&mut self) {
+        if self.selection {
+            let selected = self.filter_list_state.selected().unwrap();
+            if selected == self.finder.filters.len() {
+                self.finder.add_filter(filter::WordFilter::Length(5));
+                // should launch a popup to select the filter type
+            } else {
+                let s = self.finder.filters[selected].get_string();
+                self.insert_state = InsertState::new(&s);
+                self.input_mode = InputMode::Insert;
+            }
+        }
+    }
+
+    fn update_insertion(&mut self) {
+        let filter_index = self.filter_list_state.selected().unwrap();
+        self.finder.filters[filter_index].update(&self.insert_state.text);
+    }
 }
+
+// rendering ===================================================================
 
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
@@ -212,7 +290,13 @@ impl App {
         let mut list = List::new(filters).block(Block::bordered().title("Filters"));
 
         if self.selection {
-            list = list.highlight_style(Style::new().add_modifier(Modifier::REVERSED));
+            let mut style = Style::new().add_modifier(Modifier::REVERSED);
+
+            if self.input_mode == InputMode::Insert {
+                style = style.add_modifier(Modifier::ITALIC);
+            }
+
+            list = list.highlight_style(style);
         }
 
         StatefulWidget::render(list, area, buf, &mut self.filter_list_state);
