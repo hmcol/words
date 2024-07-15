@@ -8,7 +8,7 @@ use std::io;
 
 // -----------------------------------------------------------------------------
 
-mod filter;
+mod pred;
 mod tui;
 mod words;
 
@@ -46,8 +46,8 @@ pub struct App {
     exit: bool,
     finder: words::WordFinder,
     word_list_state: ListState,
-    filter_list_state: ListState,
-    new_filter_list_state: ListState,
+    predicate_list_state: ListState,
+    new_predicate_list_state: ListState,
     selected_area: SelectableArea,
     input_mode: InputMode,
     insert_state: InsertState,
@@ -56,7 +56,7 @@ pub struct App {
 impl App {
     fn init(&mut self) {
         self.word_list_state.select(Some(0));
-        self.filter_list_state.select(Some(0));
+        self.predicate_list_state.select(Some(0));
     }
 
     /// runs the application's main loop until the user quits
@@ -91,9 +91,9 @@ impl App {
 #[derive(Debug, Default, PartialEq)]
 enum SelectableArea {
     #[default]
-    Filters,
+    Predicates,
     Words,
-    NewFilter,
+    NewPredicate,
 }
 
 #[derive(Debug, Default, PartialEq)]
@@ -167,16 +167,16 @@ impl App {
 
     fn handle_right_arrow(&mut self) {
         match self.selected_area {
-            SelectableArea::Filters => self.selected_area = SelectableArea::Words,
-            SelectableArea::Words => self.selected_area = SelectableArea::Filters,
+            SelectableArea::Predicates => self.selected_area = SelectableArea::Words,
+            SelectableArea::Words => self.selected_area = SelectableArea::Predicates,
             _ => {}
         };
     }
 
     fn handle_left_arrow(&mut self) {
         match self.selected_area {
-            SelectableArea::Filters => self.selected_area = SelectableArea::Words,
-            SelectableArea::Words => self.selected_area = SelectableArea::Filters,
+            SelectableArea::Predicates => self.selected_area = SelectableArea::Words,
+            SelectableArea::Words => self.selected_area = SelectableArea::Predicates,
             _ => {}
         };
     }
@@ -187,9 +187,9 @@ impl App {
         }
 
         match self.selected_area {
-            SelectableArea::Filters => self.filter_list_state.select_next(),
+            SelectableArea::Predicates => self.predicate_list_state.select_next(),
             SelectableArea::Words => self.word_list_state.select_next(),
-            SelectableArea::NewFilter => self.new_filter_list_state.select_next(),
+            SelectableArea::NewPredicate => self.new_predicate_list_state.select_next(),
         }
     }
 
@@ -199,38 +199,36 @@ impl App {
         }
 
         match self.selected_area {
-            SelectableArea::Filters => self.filter_list_state.select_previous(),
+            SelectableArea::Predicates => self.predicate_list_state.select_previous(),
             SelectableArea::Words => self.word_list_state.select_previous(),
-            SelectableArea::NewFilter => self.new_filter_list_state.select_previous(),
+            SelectableArea::NewPredicate => self.new_predicate_list_state.select_previous(),
         }
     }
 
     fn handle_enter(&mut self) {
         match self.selected_area {
-            SelectableArea::Filters => {
-                let selected = self.filter_list_state.selected().unwrap();
-                if selected == self.finder.filters.len() {
-                    // self.finder.add_filter(filter::WordFilter::Length(5));
-                    // should launch a popup to select the filter type
-                    self.selected_area = SelectableArea::NewFilter;
+            SelectableArea::Predicates => {
+                let selected_index = self.predicate_list_state.selected().unwrap();
+                if selected_index == self.finder.predicates.len() {
+                    self.selected_area = SelectableArea::NewPredicate;
                 } else {
-                    let s = self.finder.filters[selected].get_string();
+                    let s = self.finder.predicates[selected_index].get_string();
                     self.insert_state = InsertState::new(&s);
                     self.input_mode = InputMode::Insert;
                 }
             }
-            SelectableArea::NewFilter => {
-                let selected = self.new_filter_list_state.selected().unwrap();
-                self.finder.add_filter_idx(selected);
-                self.selected_area = SelectableArea::Filters;
-            },
+            SelectableArea::NewPredicate => {
+                let selected = self.new_predicate_list_state.selected().unwrap();
+                self.finder.add_predicate_idx(selected);
+                self.selected_area = SelectableArea::Predicates;
+            }
             _ => {}
         }
     }
 
     fn update_insertion(&mut self) {
-        let filter_index = self.filter_list_state.selected().unwrap();
-        self.finder.filters[filter_index].update(&self.insert_state.text);
+        let selected_index = self.predicate_list_state.selected().unwrap();
+        self.finder.predicates[selected_index].update(&self.insert_state.text);
         self.word_list_state.select(Some(0));
     }
 }
@@ -267,7 +265,7 @@ impl Widget for &mut App {
             .block(Block::new().borders(Borders::ALL))
             .render(subheader, buf);
 
-        // content - list of words and filters
+        // content - list of words and predicates
 
         let [left_pane, right_pane] = Layout::default()
             .direction(Direction::Horizontal)
@@ -275,12 +273,12 @@ impl Widget for &mut App {
             .areas(content);
 
         self.render_words_list(left_pane, buf);
-        self.render_filter_list(right_pane, buf);
+        self.render_predicate_list(right_pane, buf);
 
         // footer - controls
 
         let footer_text = match self.input_mode {
-            InputMode::Normal => "q: quit | ←/→: switch panes | ↑/↓: select | ↵: edit filter",
+            InputMode::Normal => "q: quit | ←/→: switch panes | ↑/↓: select | ↵: edit predicate",
             InputMode::Insert => " ←: backspace | ↵: save",
         };
 
@@ -290,33 +288,26 @@ impl Widget for &mut App {
 
         // popup - possibly render a popup on top of everything
 
-        if self.selected_area == SelectableArea::NewFilter {
+        if self.selected_area == SelectableArea::NewPredicate {
             let popup_area = centered_rect(area, 50, 50);
 
             Clear.render(popup_area, buf);
 
             let popup_block = Block::default()
-                .title("New Filter")
+                .title("New Predicate")
                 .title_alignment(Alignment::Center)
                 .borders(Borders::ALL);
 
-            let new_filters: Vec<Line> = [
-                "Length",
-                "Starts With",
-                "Ends With",
-                "Contains",
-                "Using Letters",
-                "Scrabble Playable",
-            ]
-            .iter()
-            .map(|s| s.to_line())
-            .collect();
+            let new_predicates: Vec<Line> = pred::PREDICATES
+                .iter()
+                .map(|s| s.to_line())
+                .collect();
 
-            let list = List::new(new_filters)
+            let list = List::new(new_predicates)
                 .block(popup_block)
                 .highlight_style(Style::new().add_modifier(Modifier::REVERSED));
 
-            StatefulWidget::render(list, popup_area, buf, &mut self.new_filter_list_state);
+            StatefulWidget::render(list, popup_area, buf, &mut self.new_predicate_list_state);
         }
     }
 }
@@ -325,7 +316,7 @@ impl App {
     fn render_words_list(&mut self, area: Rect, buf: &mut Buffer) {
         let words: Vec<Line> = self
             .finder
-            .iter_filtered_words()
+            .iter_filtered()
             .map(|w| w.to_line().magenta())
             .collect();
 
@@ -342,18 +333,23 @@ impl App {
         StatefulWidget::render(list, area, buf, &mut self.word_list_state);
     }
 
-    fn render_filter_list(&mut self, area: Rect, buf: &mut Buffer) {
-        let mut filters: Vec<String> = self.finder.filters.iter().map(|f| f.to_string()).collect();
+    fn render_predicate_list(&mut self, area: Rect, buf: &mut Buffer) {
+        let mut predicates: Vec<String> = self
+            .finder
+            .predicates
+            .iter()
+            .map(|f| f.to_string())
+            .collect();
 
-        filters.push("+ New Filter".to_string());
+        predicates.push("+ New Predicate".to_string());
 
-        let mut list = List::new(filters).block(
+        let mut list = List::new(predicates).block(
             Block::bordered()
-                .title("Filters")
+                .title("Predicates")
                 .title_alignment(Alignment::Center),
         );
 
-        if self.selected_area == SelectableArea::Filters {
+        if self.selected_area == SelectableArea::Predicates {
             let mut style = Style::new().add_modifier(Modifier::REVERSED);
 
             if self.input_mode == InputMode::Insert {
@@ -363,7 +359,7 @@ impl App {
             list = list.highlight_style(style);
         }
 
-        StatefulWidget::render(list, area, buf, &mut self.filter_list_state);
+        StatefulWidget::render(list, area, buf, &mut self.predicate_list_state);
     }
 }
 

@@ -1,10 +1,10 @@
-use crate::filter::WordFilter;
+use crate::pred::Predicate;
 
 #[derive(Debug)]
 pub struct WordFinder {
     pub file_path: String,
     pub word_list: Vec<String>,
-    pub filters: Vec<WordFilter>,
+    pub predicates: Vec<Predicate>,
 }
 
 impl Default for WordFinder {
@@ -36,7 +36,7 @@ impl WordFinder {
         WordFinder {
             file_path: file_path.to_string(),
             word_list: words,
-            filters: Vec::new(),
+            predicates: Vec::new(),
         }
     }
 
@@ -57,13 +57,9 @@ impl WordFinder {
 
     // -------------------------------------------------------------------------
 
-    pub fn add_filter(&mut self, filter: WordFilter) {
-        self.filters.push(filter);
-    }
-
-    pub fn add_filter_idx(&mut self, index: usize) {
-        if let Some(f) = WordFilter::from_index(index) {
-            self.filters.push(f);
+    pub fn add_predicate_idx(&mut self, index: usize) {
+        if let Some(p) = Predicate::from_index(index) {
+            self.predicates.push(p);
         }
     }
 
@@ -74,9 +70,9 @@ impl WordFinder {
     //         .collect()
     // }
 
-    pub fn iter_filtered_words(&self) -> impl Iterator<Item = &String> {
+    pub fn iter_filtered(&self) -> impl Iterator<Item = &String> {
         self.word_list
             .iter()
-            .filter(move |word| self.filters.iter().all(|f| f.matches(word)))
+            .filter(move |word| self.predicates.iter().all(|f| f.matches(word)))
     }
 }
