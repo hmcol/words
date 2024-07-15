@@ -227,42 +227,24 @@ impl App {
 
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        // let [header, subheader, content, footer] = Layout::default()
-        //     .direction(Direction::Vertical)
-        //     .constraints([
-        //         Constraint::Length(1),
-        //         Constraint::Length(3),
-        //         Constraint::Min(1),
-        //         Constraint::Length(3),
-        //     ])
-        //     .areas(frame);
-
-        // outer border and title
-        let title = Title::from(" Word Finder ".bold());
-
-        let instructions = Title::from(Line::from(vec![" <Q> ".blue().bold(), " Quit ".into()]));
-
-        let block = Block::bordered()
-            .title(title.alignment(Alignment::Center))
-            .title(
-                instructions
-                    .alignment(Alignment::Center)
-                    .position(Position::Bottom),
-            )
-            .border_set(border::THICK);
-
-        let inner_area = block.inner(area);
-
-        block.render(area, buf);
-
-        // inner content
-
-        let layout = Layout::default()
+        let [header, subheader, content, footer] = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(2), Constraint::Min(1)])
-            .split(inner_area);
+            .constraints([
+                Constraint::Length(1),
+                Constraint::Length(3),
+                Constraint::Min(1),
+                Constraint::Length(1),
+            ])
+            .areas(area);
 
-        // path to word list
+        // header - app name
+
+        let heading = "Word Finder".to_string().bold().underlined();
+        Paragraph::new(heading)
+            .alignment(Alignment::Center)
+            .render(header, buf);
+
+        // subheader - file path to word list
 
         let path_text = Line::from(vec![
             " Word List: ".into(),
@@ -270,18 +252,29 @@ impl Widget for &mut App {
         ]);
 
         Paragraph::new(path_text)
-            .block(Block::new().borders(Borders::BOTTOM))
-            .render(layout[0], buf);
+            .block(Block::new().borders(Borders::ALL))
+            .render(subheader, buf);
 
-        // lower area
+        // content - list of words and filters
 
         let [left_pane, right_pane] = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
-            .areas(layout[1]);
+            .areas(content);
 
         self.render_words_list(left_pane, buf);
         self.render_filter_list(right_pane, buf);
+
+        // footer - controls
+
+        let footer_text = match self.input_mode {
+            InputMode::Normal => "q: quit | ←/→: switch panes | ↑/↓: select | ↵: edit filter",
+            InputMode::Insert => " ←: backspace | ↵: save",
+        };
+
+        Paragraph::new(footer_text)
+            .alignment(Alignment::Center)
+            .render(footer, buf);
     }
 }
 
@@ -293,7 +286,11 @@ impl App {
             .map(|w| w.to_line().magenta())
             .collect();
 
-        let mut list = List::new(words).block(Block::bordered().title("Found Words"));
+        let mut list = List::new(words).block(
+            Block::bordered()
+                .title("Found Words")
+                .title_alignment(Alignment::Center),
+        );
 
         if self.selected_area == SelectableArea::Words {
             list = list.highlight_style(Style::new().add_modifier(Modifier::REVERSED));
@@ -307,7 +304,11 @@ impl App {
 
         filters.push("+ Add Filter".to_string());
 
-        let mut list = List::new(filters).block(Block::bordered().title("Filters"));
+        let mut list = List::new(filters).block(
+            Block::bordered()
+                .title("Filters")
+                .title_alignment(Alignment::Center),
+        );
 
         if self.selected_area == SelectableArea::Filters {
             let mut style = Style::new().add_modifier(Modifier::REVERSED);
