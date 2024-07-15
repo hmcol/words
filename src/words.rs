@@ -16,7 +16,6 @@ impl Default for WordFinder {
 
         wf
     }
-
 }
 
 impl WordFinder {
@@ -46,20 +45,20 @@ impl WordFinder {
         }
     }
 
-    pub fn log_stats(&self) {
-        let word_lengths: Vec<usize> = self.word_list.iter().map(|word| word.len()).collect();
+    // pub fn log_stats(&self) {
+    //     let word_lengths: Vec<usize> = self.word_list.iter().map(|word| word.len()).collect();
 
-        let mut length_counts = std::collections::HashMap::new();
+    //     let mut length_counts = std::collections::HashMap::new();
 
-        for length in word_lengths.iter() {
-            let count = length_counts.entry(length).or_insert(0);
-            *count += 1;
-        }
+    //     for length in word_lengths.iter() {
+    //         let count = length_counts.entry(length).or_insert(0);
+    //         *count += 1;
+    //     }
 
-        for (length, count) in length_counts.iter() {
-            log::info!("{:02}: {}", length, count);
-        }
-    }
+    //     for (length, count) in length_counts.iter() {
+    //         log::info!("{:02}: {}", length, count);
+    //     }
+    // }
 
     // -------------------------------------------------------------------------
 
@@ -67,60 +66,16 @@ impl WordFinder {
         self.filters.push(filter);
     }
 
-    pub fn get_filtered_words(&self) -> Vec<&String> {
-        self.word_list
-            .iter()
-            .filter(|word| self.filters.iter().all(|f| f.matches(word)))
-            .collect()
-    }
+    // pub fn get_filtered_words(&self) -> Vec<&String> {
+    //     self.word_list
+    //         .iter()
+    //         .filter(|word| self.filters.iter().all(|f| f.matches(word)))
+    //         .collect()
+    // }
 
     pub fn iter_filtered_words(&self) -> impl Iterator<Item = &String> {
-        self.word_list.iter().filter(move |word| self.filters.iter().all(|f| f.matches(word)))
-    }
-
-    /// Find words that are spelled using only the given letters, repeat letters allowed
-    ///
-    /// given `letters` a "set" of letters, we only require that each letter of the word is in `letters`
-    pub fn find_with_only_letters(&self, letters: &str) -> Vec<&String> {
-        let is_valid = move |word: &String| -> bool {
-            for l in word.chars() {
-                if !letters.contains(l) {
-                    return false;
-                }
-            }
-            true
-        };
-
         self.word_list
             .iter()
-            .filter(|word| is_valid(word))
-            .collect()
-    }
-
-    /// Find words that could be played given a set of tiles in a scrabble game
-    ///
-    /// `tiles` must be a string containing only letters and possibly question marks to represent blank tiles
-    pub fn find_scrabble_simple(&self, tiles: &str) -> Vec<&String> {
-        let is_valid = move |word: &String| -> bool {
-            let mut tiles = tiles.to_string();
-
-            for l in word.chars() {
-                if let Some(pos) = tiles.find(l) {
-                    tiles.remove(pos);
-                } else if let Some(pos) = tiles.find('?') {
-                    tiles.remove(pos);
-                } else {
-                    return false;
-                }
-            }
-
-            true
-        };
-
-        self.word_list
-            .iter()
-            .filter(|word| is_valid(word))
-            .collect()
+            .filter(move |word| self.filters.iter().all(|f| f.matches(word)))
     }
 }
-

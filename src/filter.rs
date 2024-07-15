@@ -15,7 +15,7 @@ pub enum WordFilter {
 }
 
 impl WordFilter {
-    pub fn matches(&self, word: &String) -> bool {
+    pub fn matches(&self, word: &str) -> bool {
         match self {
             WordFilter::Length(len) => word.len() == *len,
             WordFilter::StartsWith(prefix) => word.starts_with(prefix),

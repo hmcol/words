@@ -1,5 +1,3 @@
-use log::debug;
-use log::info;
 use ratatui::{
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     prelude::*,
@@ -33,7 +31,7 @@ fn main() -> io::Result<()> {
     colog::basic_builder()
         .filter(None, log::LevelFilter::Debug)
         .init();
-    info!("logging initialized");
+    log::info!("logging initialized");
 
     let mut terminal = tui::init()?;
     let app_result = App::default().run(&mut terminal);
