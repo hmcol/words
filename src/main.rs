@@ -63,8 +63,14 @@ pub struct App {
 }
 
 impl App {
+    fn init(&mut self) {
+        self.word_list_state.select(Some(0));
+        self.filter_list_state.select(Some(0));
+    }
+
     /// runs the application's main loop until the user quits
     pub fn run(&mut self, terminal: &mut tui::Tui) -> io::Result<()> {
+        self.init();
         while !self.exit {
             terminal.draw(|frame| self.render_frame(frame))?;
             self.handle_events()?;
@@ -220,6 +226,7 @@ impl App {
     fn update_insertion(&mut self) {
         let filter_index = self.filter_list_state.selected().unwrap();
         self.finder.filters[filter_index].update(&self.insert_state.text);
+        self.word_list_state.select(Some(0));
     }
 }
 
@@ -239,7 +246,7 @@ impl Widget for &mut App {
 
         // header - app name
 
-        let heading = "Word Finder".to_string().bold().underlined();
+        let heading = "Word Finder".to_string().bold();
         Paragraph::new(heading)
             .alignment(Alignment::Center)
             .render(header, buf);
