@@ -9,12 +9,7 @@ pub struct WordFinder {
 
 impl Default for WordFinder {
     fn default() -> Self {
-        let mut wf = Self::from_file("./lists/dictionary.txt");
-
-        // wf.add_filter(WordFilter::Length(5));
-        wf.add_filter(WordFilter::StartsWith("ph".to_string()));
-
-        wf
+        Self::from_file("./lists/dictionary.txt")
     }
 }
 
@@ -64,6 +59,12 @@ impl WordFinder {
 
     pub fn add_filter(&mut self, filter: WordFilter) {
         self.filters.push(filter);
+    }
+
+    pub fn add_filter_idx(&mut self, index: usize) {
+        if let Some(f) = WordFilter::from_index(index) {
+            self.filters.push(f);
+        }
     }
 
     // pub fn get_filtered_words(&self) -> Vec<&String> {

@@ -26,15 +26,15 @@ impl WordFilter {
         ]
     }
 
-    pub fn from_index(index: usize) -> Self {
+    pub fn from_index(index: usize) -> Option<Self> {
         match index {
-            0 => WordFilter::Length(0),
-            1 => WordFilter::StartsWith("".to_string()),
-            2 => WordFilter::EndsWith("".to_string()),
-            3 => WordFilter::Contains("".to_string()),
-            4 => WordFilter::UsingLetters("".to_string()),
-            5 => WordFilter::ScrabblePlayable("".to_string()),
-            _ => panic!("Invalid filter index"),
+            0 => Some(WordFilter::Length(0)),
+            1 => Some(WordFilter::StartsWith("".to_string())),
+            2 => Some(WordFilter::EndsWith("".to_string())),
+            3 => Some(WordFilter::Contains("".to_string())),
+            4 => Some(WordFilter::UsingLetters("".to_string())),
+            5 => Some(WordFilter::ScrabblePlayable("".to_string())),
+            _ => None,
         }
     }
 

@@ -221,7 +221,7 @@ impl App {
             }
             SelectableArea::NewFilter => {
                 let selected = self.new_filter_list_state.selected().unwrap();
-                self.finder.add_filter(filter::WordFilter::from_index(selected));
+                self.finder.add_filter_idx(selected);
                 self.selected_area = SelectableArea::Filters;
             },
             _ => {}
