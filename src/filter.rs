@@ -15,6 +15,29 @@ pub enum WordFilter {
 }
 
 impl WordFilter {
+    pub fn list_names() -> Vec<String> {
+        vec![
+            "Length".to_string(),
+            "Starts with".to_string(),
+            "Ends with".to_string(),
+            "Contains".to_string(),
+            "Using letters".to_string(),
+            "Scrabble playable".to_string(),
+        ]
+    }
+
+    pub fn from_index(index: usize) -> Self {
+        match index {
+            0 => WordFilter::Length(0),
+            1 => WordFilter::StartsWith("".to_string()),
+            2 => WordFilter::EndsWith("".to_string()),
+            3 => WordFilter::Contains("".to_string()),
+            4 => WordFilter::UsingLetters("".to_string()),
+            5 => WordFilter::ScrabblePlayable("".to_string()),
+            _ => panic!("Invalid filter index"),
+        }
+    }
+
     pub fn matches(&self, word: &str) -> bool {
         match self {
             WordFilter::Length(len) => word.len() == *len,

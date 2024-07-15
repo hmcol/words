@@ -2,7 +2,7 @@ use ratatui::{
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     prelude::*,
     text::ToLine,
-    widgets::{Block, Borders, List, ListState, Paragraph},
+    widgets::{Block, Borders, Clear, List, ListState, Paragraph},
 };
 use std::io;
 
@@ -47,6 +47,7 @@ pub struct App {
     finder: words::WordFinder,
     word_list_state: ListState,
     filter_list_state: ListState,
+    new_filter_list_state: ListState,
     selected_area: SelectableArea,
     input_mode: InputMode,
     insert_state: InsertState,
@@ -188,7 +189,7 @@ impl App {
         match self.selected_area {
             SelectableArea::Filters => self.filter_list_state.select_next(),
             SelectableArea::Words => self.word_list_state.select_next(),
-            SelectableArea::NewFilter => todo!(),
+            SelectableArea::NewFilter => self.new_filter_list_state.select_next(),
         }
     }
 
@@ -200,7 +201,7 @@ impl App {
         match self.selected_area {
             SelectableArea::Filters => self.filter_list_state.select_previous(),
             SelectableArea::Words => self.word_list_state.select_previous(),
-            SelectableArea::NewFilter => todo!(),
+            SelectableArea::NewFilter => self.new_filter_list_state.select_previous(),
         }
     }
 
@@ -209,7 +210,7 @@ impl App {
             SelectableArea::Filters => {
                 let selected = self.filter_list_state.selected().unwrap();
                 if selected == self.finder.filters.len() {
-                    self.finder.add_filter(filter::WordFilter::Length(5));
+                    // self.finder.add_filter(filter::WordFilter::Length(5));
                     // should launch a popup to select the filter type
                     self.selected_area = SelectableArea::NewFilter;
                 } else {
@@ -218,7 +219,11 @@ impl App {
                     self.input_mode = InputMode::Insert;
                 }
             }
-            SelectableArea::NewFilter => todo!(),
+            SelectableArea::NewFilter => {
+                let selected = self.new_filter_list_state.selected().unwrap();
+                self.finder.add_filter(filter::WordFilter::from_index(selected));
+                self.selected_area = SelectableArea::Filters;
+            },
             _ => {}
         }
     }
@@ -286,15 +291,32 @@ impl Widget for &mut App {
         // popup - possibly render a popup on top of everything
 
         if self.selected_area == SelectableArea::NewFilter {
-            let popup_area = Rect::new(10, 10, 20, 10);
+            let popup_area = centered_rect(area, 50, 50);
+
+            Clear.render(popup_area, buf);
+
             let popup_block = Block::default()
                 .title("New Filter")
                 .title_alignment(Alignment::Center)
                 .borders(Borders::ALL);
-            let popup_text = Text::from("Select a filter type");
-            Paragraph::new(popup_text)
+
+            let new_filters: Vec<Line> = [
+                "Length",
+                "Starts With",
+                "Ends With",
+                "Contains",
+                "Using Letters",
+                "Scrabble Playable",
+            ]
+            .iter()
+            .map(|s| s.to_line())
+            .collect();
+
+            let list = List::new(new_filters)
                 .block(popup_block)
-                .render(popup_area, buf);
+                .highlight_style(Style::new().add_modifier(Modifier::REVERSED));
+
+            StatefulWidget::render(list, popup_area, buf, &mut self.new_filter_list_state);
         }
     }
 }
@@ -343,4 +365,29 @@ impl App {
 
         StatefulWidget::render(list, area, buf, &mut self.filter_list_state);
     }
+}
+
+// =============================================================================
+
+/// A helper function to create a centered rectangle within the given area
+///
+/// taken from the ratatui book
+fn centered_rect(r: Rect, percent_x: u16, percent_y: u16) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
 }
