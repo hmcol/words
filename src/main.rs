@@ -1,19 +1,11 @@
 use log::debug;
 use log::info;
 use ratatui::{
-    buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style, Stylize},
-    symbols::border,
-    text::{Line, Text, ToLine},
-    widgets::{
-        block::{Position, Title},
-        Block, Borders, List, ListState, Paragraph, StatefulWidget, Widget,
-    },
-    Frame,
+    prelude::*,
+    text::ToLine,
+    widgets::{Block, Borders, List, ListState, Paragraph},
 };
-use std::fs; // import the debug macro from the log crate
 use std::io;
 
 // -----------------------------------------------------------------------------
@@ -102,6 +94,7 @@ enum SelectableArea {
     #[default]
     Filters,
     Words,
+    NewFilter,
 }
 
 #[derive(Debug, Default, PartialEq)]
@@ -174,16 +167,18 @@ impl App {
     }
 
     fn handle_right_arrow(&mut self) {
-        self.selected_area = match self.selected_area {
-            SelectableArea::Filters => SelectableArea::Words,
-            SelectableArea::Words => SelectableArea::Filters,
+        match self.selected_area {
+            SelectableArea::Filters => self.selected_area = SelectableArea::Words,
+            SelectableArea::Words => self.selected_area = SelectableArea::Filters,
+            _ => {}
         };
     }
 
     fn handle_left_arrow(&mut self) {
-        self.selected_area = match self.selected_area {
-            SelectableArea::Filters => SelectableArea::Words,
-            SelectableArea::Words => SelectableArea::Filters,
+        match self.selected_area {
+            SelectableArea::Filters => self.selected_area = SelectableArea::Words,
+            SelectableArea::Words => self.selected_area = SelectableArea::Filters,
+            _ => {}
         };
     }
 
@@ -195,6 +190,7 @@ impl App {
         match self.selected_area {
             SelectableArea::Filters => self.filter_list_state.select_next(),
             SelectableArea::Words => self.word_list_state.select_next(),
+            SelectableArea::NewFilter => todo!(),
         }
     }
 
@@ -206,20 +202,26 @@ impl App {
         match self.selected_area {
             SelectableArea::Filters => self.filter_list_state.select_previous(),
             SelectableArea::Words => self.word_list_state.select_previous(),
+            SelectableArea::NewFilter => todo!(),
         }
     }
 
     fn handle_enter(&mut self) {
-        if self.selected_area == SelectableArea::Filters {
-            let selected = self.filter_list_state.selected().unwrap();
-            if selected == self.finder.filters.len() {
-                self.finder.add_filter(filter::WordFilter::Length(5));
-                // should launch a popup to select the filter type
-            } else {
-                let s = self.finder.filters[selected].get_string();
-                self.insert_state = InsertState::new(&s);
-                self.input_mode = InputMode::Insert;
+        match self.selected_area {
+            SelectableArea::Filters => {
+                let selected = self.filter_list_state.selected().unwrap();
+                if selected == self.finder.filters.len() {
+                    self.finder.add_filter(filter::WordFilter::Length(5));
+                    // should launch a popup to select the filter type
+                    self.selected_area = SelectableArea::NewFilter;
+                } else {
+                    let s = self.finder.filters[selected].get_string();
+                    self.insert_state = InsertState::new(&s);
+                    self.input_mode = InputMode::Insert;
+                }
             }
+            SelectableArea::NewFilter => todo!(),
+            _ => {}
         }
     }
 
@@ -282,6 +284,20 @@ impl Widget for &mut App {
         Paragraph::new(footer_text)
             .alignment(Alignment::Center)
             .render(footer, buf);
+
+        // popup - possibly render a popup on top of everything
+
+        if self.selected_area == SelectableArea::NewFilter {
+            let popup_area = Rect::new(10, 10, 20, 10);
+            let popup_block = Block::default()
+                .title("New Filter")
+                .title_alignment(Alignment::Center)
+                .borders(Borders::ALL);
+            let popup_text = Text::from("Select a filter type");
+            Paragraph::new(popup_text)
+                .block(popup_block)
+                .render(popup_area, buf);
+        }
     }
 }
 
@@ -309,7 +325,7 @@ impl App {
     fn render_filter_list(&mut self, area: Rect, buf: &mut Buffer) {
         let mut filters: Vec<String> = self.finder.filters.iter().map(|f| f.to_string()).collect();
 
-        filters.push("+ Add Filter".to_string());
+        filters.push("+ New Filter".to_string());
 
         let mut list = List::new(filters).block(
             Block::bordered()
