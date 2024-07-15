@@ -140,6 +140,7 @@ impl App {
             KeyCode::Down => self.handle_down_arrow(),
             KeyCode::Up => self.handle_up_arrow(),
             KeyCode::Enter => self.handle_enter(),
+            KeyCode::Delete => self.handle_delete(),
             _ => {}
         }
     }
@@ -219,10 +220,17 @@ impl App {
             }
             SelectableArea::NewPredicate => {
                 let selected = self.new_predicate_list_state.selected().unwrap();
-                self.finder.add_predicate_idx(selected);
+                self.finder.add_predicate(selected);
                 self.selected_area = SelectableArea::Predicates;
             }
             _ => {}
+        }
+    }
+
+    fn handle_delete(&mut self) {
+        if SelectableArea::Predicates == self.selected_area {
+            let selected_index = self.predicate_list_state.selected().unwrap();
+            self.finder.remove_predicate(selected_index);
         }
     }
 
@@ -298,10 +306,7 @@ impl Widget for &mut App {
                 .title_alignment(Alignment::Center)
                 .borders(Borders::ALL);
 
-            let new_predicates: Vec<Line> = pred::PREDICATES
-                .iter()
-                .map(|s| s.to_line())
-                .collect();
+            let new_predicates: Vec<Line> = pred::PREDICATES.iter().map(|s| s.to_line()).collect();
 
             let list = List::new(new_predicates)
                 .block(popup_block)

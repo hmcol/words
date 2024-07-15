@@ -57,10 +57,14 @@ impl WordFinder {
 
     // -------------------------------------------------------------------------
 
-    pub fn add_predicate_idx(&mut self, index: usize) {
+    pub fn add_predicate(&mut self, index: usize) {
         if let Some(p) = Predicate::from_index(index) {
             self.predicates.push(p);
         }
+    }
+
+    pub fn remove_predicate(&mut self, index: usize) {
+        self.predicates.remove(index);
     }
 
     // pub fn get_filtered_words(&self) -> Vec<&String> {

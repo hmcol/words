@@ -28,11 +28,11 @@ impl Predicate {
     pub fn from_index(index: usize) -> Option<Self> {
         match index {
             0 => Some(Predicate::Length(0)),
-            1 => Some(Predicate::StartsWith("".to_string())),
-            2 => Some(Predicate::EndsWith("".to_string())),
-            3 => Some(Predicate::Contains("".to_string())),
-            4 => Some(Predicate::UsingLetters("".to_string())),
-            5 => Some(Predicate::ScrabblePlayable("".to_string())),
+            1 => Some(Predicate::StartsWith(String::new())),
+            2 => Some(Predicate::EndsWith(String::new())),
+            3 => Some(Predicate::Contains(String::new())),
+            4 => Some(Predicate::UsingLetters(String::new())),
+            5 => Some(Predicate::ScrabblePlayable(String::new())),
             _ => None,
         }
     }
