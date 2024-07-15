@@ -47,18 +47,6 @@ impl WordFilter {
         }
     }
 
-    pub fn get_name(&self) -> String {
-        match self {
-            WordFilter::Length(_) => "Length",
-            WordFilter::StartsWith(_) => "Starts with",
-            WordFilter::EndsWith(_) => "Ends with",
-            WordFilter::Contains(_) => "Contains",
-            WordFilter::UsingLetters(_) => "Using letters",
-            WordFilter::ScrabblePlayable(_) => "Scrabble playable",
-        }
-        .to_string()
-    }
-
     pub fn get_string(&self) -> String {
         match self {
             WordFilter::Length(len) => len.to_string(),
@@ -75,6 +63,8 @@ impl WordFilter {
             WordFilter::Length(len) => {
                 if let Ok(len2) = s.parse() {
                     *len = len2;
+                } else {
+                    *len = 0;
                 }
             }
             WordFilter::StartsWith(prefix) => {
