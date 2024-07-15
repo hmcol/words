@@ -53,12 +53,11 @@ fn main() -> io::Result<()> {
 
 #[derive(Debug, Default)]
 pub struct App {
-    counter: u8,
     exit: bool,
     finder: words::WordFinder,
     word_list_state: ListState,
     filter_list_state: ListState,
-    selection: bool,
+    selected_area: SelectableArea,
     input_mode: InputMode,
     insert_state: InsertState,
 }
@@ -91,6 +90,13 @@ impl App {
 }
 
 // key input handling ==========================================================
+
+#[derive(Debug, Default, PartialEq)]
+enum SelectableArea {
+    #[default]
+    Filters,
+    Words,
+}
 
 #[derive(Debug, Default, PartialEq)]
 enum InputMode {
@@ -162,11 +168,17 @@ impl App {
     }
 
     fn handle_right_arrow(&mut self) {
-        self.selection = !self.selection;
+        self.selected_area = match self.selected_area {
+            SelectableArea::Filters => SelectableArea::Words,
+            SelectableArea::Words => SelectableArea::Filters,
+        };
     }
 
     fn handle_left_arrow(&mut self) {
-        self.selection = !self.selection;
+        self.selected_area = match self.selected_area {
+            SelectableArea::Filters => SelectableArea::Words,
+            SelectableArea::Words => SelectableArea::Filters,
+        };
     }
 
     fn handle_down_arrow(&mut self) {
@@ -174,10 +186,9 @@ impl App {
             return;
         }
 
-        if self.selection {
-            self.filter_list_state.select_next();
-        } else {
-            self.word_list_state.select_next();
+        match self.selected_area {
+            SelectableArea::Filters => self.filter_list_state.select_next(),
+            SelectableArea::Words => self.word_list_state.select_next(),
         }
     }
 
@@ -186,15 +197,14 @@ impl App {
             return;
         }
 
-        if self.selection {
-            self.filter_list_state.select_previous();
-        } else {
-            self.word_list_state.select_previous();
+        match self.selected_area {
+            SelectableArea::Filters => self.filter_list_state.select_previous(),
+            SelectableArea::Words => self.word_list_state.select_previous(),
         }
     }
 
     fn handle_enter(&mut self) {
-        if self.selection {
+        if self.selected_area == SelectableArea::Filters {
             let selected = self.filter_list_state.selected().unwrap();
             if selected == self.finder.filters.len() {
                 self.finder.add_filter(filter::WordFilter::Length(5));
@@ -217,6 +227,16 @@ impl App {
 
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
+        // let [header, subheader, content, footer] = Layout::default()
+        //     .direction(Direction::Vertical)
+        //     .constraints([
+        //         Constraint::Length(1),
+        //         Constraint::Length(3),
+        //         Constraint::Min(1),
+        //         Constraint::Length(3),
+        //     ])
+        //     .areas(frame);
+
         // outer border and title
         let title = Title::from(" Word Finder ".bold());
 
@@ -275,7 +295,7 @@ impl App {
 
         let mut list = List::new(words).block(Block::bordered().title("Found Words"));
 
-        if !self.selection {
+        if self.selected_area == SelectableArea::Words {
             list = list.highlight_style(Style::new().add_modifier(Modifier::REVERSED));
         }
 
@@ -289,7 +309,7 @@ impl App {
 
         let mut list = List::new(filters).block(Block::bordered().title("Filters"));
 
-        if self.selection {
+        if self.selected_area == SelectableArea::Filters {
             let mut style = Style::new().add_modifier(Modifier::REVERSED);
 
             if self.input_mode == InputMode::Insert {
