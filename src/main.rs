@@ -94,6 +94,7 @@ enum SelectableArea {
     Predicates,
     Words,
     NewPredicate,
+    Sorting,
 }
 
 #[derive(Debug, Default, PartialEq)]
@@ -191,6 +192,7 @@ impl App {
             SelectableArea::Predicates => self.predicate_list_state.select_next(),
             SelectableArea::Words => self.word_list_state.select_next(),
             SelectableArea::NewPredicate => self.new_predicate_list_state.select_next(),
+            _ => {},
         }
     }
 
@@ -203,6 +205,7 @@ impl App {
             SelectableArea::Predicates => self.predicate_list_state.select_previous(),
             SelectableArea::Words => self.word_list_state.select_previous(),
             SelectableArea::NewPredicate => self.new_predicate_list_state.select_previous(),
+            _ => {},
         }
     }
 
@@ -212,6 +215,7 @@ impl App {
                 let selected_index = self.predicate_list_state.selected().unwrap();
                 if selected_index == self.finder.predicates.len() {
                     self.selected_area = SelectableArea::NewPredicate;
+                    self.new_predicate_list_state.select(Some(0))
                 } else {
                     let s = self.finder.predicates[selected_index].get_string();
                     self.insert_state = InsertState::new(&s);
@@ -275,13 +279,18 @@ impl Widget for &mut App {
 
         // content - list of words and predicates
 
-        let [left_pane, right_pane] = Layout::default()
+        let [left_pane, middle_pane, right_pane] = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
+            .constraints(vec![
+                Constraint::Percentage(33),
+                Constraint::Percentage(33),
+                Constraint::Percentage(33),
+            ])
             .areas(content);
 
-        self.render_words_list(left_pane, buf);
-        self.render_predicate_list(right_pane, buf);
+        self.render_words_pane(left_pane, buf);
+        self.render_sorting_pane(middle_pane, buf);
+        self.render_predicate_pane(right_pane, buf);
 
         // footer - controls
 
@@ -318,7 +327,7 @@ impl Widget for &mut App {
 }
 
 impl App {
-    fn render_words_list(&mut self, area: Rect, buf: &mut Buffer) {
+    fn render_words_pane(&mut self, area: Rect, buf: &mut Buffer) {
         let words: Vec<Line> = self
             .finder
             .iter_filtered()
@@ -330,6 +339,33 @@ impl App {
                 .title("Found Words")
                 .title_alignment(Alignment::Center),
         );
+ 
+        if self.selected_area == SelectableArea::Words {
+            list = list.highlight_style(Style::new().add_modifier(Modifier::REVERSED));
+        }
+
+        StatefulWidget::render(list, area, buf, &mut self.word_list_state);
+    }
+
+    fn render_sorting_pane(&mut self, area: Rect, buf: &mut Buffer) {
+        let sorting_options = vec![
+            "alphabetical".to_line(),
+            "reverse alphabetical".to_line(),
+            "longest -> shortest".to_line(),
+            "shortest -> longest".to_line(),
+        ];
+
+        // let words: Vec<Line> = self
+        //     .finder
+        //     .iter_filtered()
+        //     .map(|w| w.to_line().magenta())
+        //     .collect();
+
+        let mut list = List::new(sorting_options).block(
+            Block::bordered()
+                .title("Sorting")
+                .title_alignment(Alignment::Center),
+        );
 
         if self.selected_area == SelectableArea::Words {
             list = list.highlight_style(Style::new().add_modifier(Modifier::REVERSED));
@@ -338,7 +374,7 @@ impl App {
         StatefulWidget::render(list, area, buf, &mut self.word_list_state);
     }
 
-    fn render_predicate_list(&mut self, area: Rect, buf: &mut Buffer) {
+    fn render_predicate_pane(&mut self, area: Rect, buf: &mut Buffer) {
         let mut predicates: Vec<String> = self
             .finder
             .predicates
