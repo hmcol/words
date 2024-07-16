@@ -195,13 +195,17 @@ impl App {
                 }
             }
             SelectableArea::NewPredicate => {
-                let selected = self
+                let selected_index = self
                     .state
                     .new_pred_list
                     .selected()
                     .expect("Failed to get selected predicate");
-                self.finder.add_predicate(selected);
+                self.finder.add_predicate(selected_index);
                 self.state.focus_pane = SelectableArea::Predicates;
+
+                // immediately being editing the new predicate
+                self.state.insert_buf = self.finder.get_predicate_string(selected_index);
+                self.state.input_mode = InputMode::Insert;
             }
             _ => {}
         }
@@ -218,6 +222,7 @@ impl App {
         }
     }
 
+    /// i dont like this function
     fn update_insertion(&mut self) {
         let selected_index = self
             .state
@@ -234,6 +239,8 @@ impl App {
 
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
+        // layout - shape of the app
+
         let [header, subheader, content, footer] = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -243,6 +250,8 @@ impl Widget for &mut App {
                 Constraint::Length(1),
             ])
             .areas(area);
+
+        let popup_area = centered_rect(area, 50, 50);
 
         // header - app name
 
@@ -291,43 +300,25 @@ impl Widget for &mut App {
         // popup - possibly render a popup on top of everything
 
         if self.state.focus_pane == SelectableArea::NewPredicate {
-            let popup_area = centered_rect(area, 50, 50);
-
-            Clear.render(popup_area, buf);
-
-            let popup_block = Block::default()
-                .title("New Predicate")
-                .title_alignment(Alignment::Center)
-                .borders(Borders::ALL);
-
-            let new_predicates: Vec<Line> = self
-                .finder
-                .iter_predicate_names()
-                .map(|s| s.to_line())
-                .collect();
-
-            let list = List::new(new_predicates)
-                .block(popup_block)
-                .highlight_style(Style::new().add_modifier(Modifier::REVERSED));
-
-            StatefulWidget::render(list, popup_area, buf, &mut self.state.new_pred_list);
+            
+            self.render_new_predicate_pane(popup_area, buf);
         }
     }
 }
 
 impl App {
     fn render_words_pane(&mut self, area: Rect, buf: &mut Buffer) {
-        let words: Vec<Line> = self
+        let items: Vec<Line> = self
             .finder
             .iter_filtered()
             .map(|w| w.to_line().magenta())
             .collect();
 
-        let mut list = List::new(words).block(
-            Block::bordered()
-                .title("Found Words")
-                .title_alignment(Alignment::Center),
-        );
+        let block = Block::bordered()
+            .title("Found Words")
+            .title_alignment(Alignment::Center);
+
+        let mut list = List::new(items).block(block);
 
         if self.state.focus_pane == SelectableArea::Words {
             list = list.highlight_style(Style::new().add_modifier(Modifier::REVERSED));
@@ -337,7 +328,7 @@ impl App {
     }
 
     fn render_sorting_pane(&mut self, area: Rect, buf: &mut Buffer) {
-        let sorting_options = vec![
+        let items = vec![
             "alphabetical".to_line(),
             "reverse alphabetical".to_line(),
             "longest -> shortest".to_line(),
@@ -350,11 +341,11 @@ impl App {
         //     .map(|w| w.to_line().magenta())
         //     .collect();
 
-        let mut list = List::new(sorting_options).block(
-            Block::bordered()
-                .title("Sorting")
-                .title_alignment(Alignment::Center),
-        );
+        let block = Block::bordered()
+            .title("Sorting")
+            .title_alignment(Alignment::Center);
+
+        let mut list = List::new(items).block(block);
 
         if self.state.focus_pane == SelectableArea::Sorting {
             list = list.highlight_style(Style::new().add_modifier(Modifier::REVERSED));
@@ -364,20 +355,19 @@ impl App {
     }
 
     fn render_predicate_pane(&mut self, area: Rect, buf: &mut Buffer) {
-        let mut predicates: Vec<String> = self
+        let mut items: Vec<String> = self
             .finder
             .predicates
             .iter()
             .map(|f| f.to_string())
             .collect();
+        items.push("+ New Predicate".to_string());
 
-        predicates.push("+ New Predicate".to_string());
+        let block = Block::bordered()
+            .title("Predicates")
+            .title_alignment(Alignment::Center);
 
-        let mut list = List::new(predicates).block(
-            Block::bordered()
-                .title("Predicates")
-                .title_alignment(Alignment::Center),
-        );
+        let mut list = List::new(items).block(block);
 
         if self.state.focus_pane == SelectableArea::Predicates {
             let mut style = Style::new().add_modifier(Modifier::REVERSED);
@@ -390,6 +380,27 @@ impl App {
         }
 
         StatefulWidget::render(list, area, buf, &mut self.state.pred_list);
+    }
+
+    fn render_new_predicate_pane(&mut self, area: Rect, buf: &mut Buffer) {
+        let items: Vec<Line> = self
+            .finder
+            .iter_predicate_names()
+            .map(|s| s.to_line())
+            .collect();
+
+        let block = Block::default()
+            .title("New Predicate")
+            .title_alignment(Alignment::Center)
+            .borders(Borders::ALL);
+
+        let list = List::new(items)
+            .block(block)
+            .highlight_style(Style::new().add_modifier(Modifier::REVERSED));
+
+        // clear the area first so the popup appears on top
+        Clear.render(area, buf);
+        StatefulWidget::render(list, area, buf, &mut self.state.new_pred_list);
     }
 }
 
