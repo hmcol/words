@@ -214,18 +214,18 @@ impl App {
     fn handle_enter(&mut self) {
         match self.selected_area {
             SelectableArea::Predicates => {
-                let selected_index = self.predicate_list_state.selected().unwrap();
+                let selected_index = self.predicate_list_state.selected().expect("Failed to get selected predicate");
                 if selected_index == self.finder.predicates.len() {
                     self.selected_area = SelectableArea::NewPredicate;
                     self.new_predicate_list_state.select(Some(0))
                 } else {
-                    let s = self.finder.predicates[selected_index].get_string();
+                    let s = self.finder.get_predicate_string(selected_index);
                     self.insert_state = InsertState::new(&s);
                     self.input_mode = InputMode::Insert;
                 }
             }
             SelectableArea::NewPredicate => {
-                let selected = self.new_predicate_list_state.selected().unwrap();
+                let selected = self.new_predicate_list_state.selected().expect("Failed to get selected predicate");
                 self.finder.add_predicate(selected);
                 self.selected_area = SelectableArea::Predicates;
             }
@@ -235,14 +235,21 @@ impl App {
 
     fn handle_delete(&mut self) {
         if SelectableArea::Predicates == self.selected_area {
-            let selected_index = self.predicate_list_state.selected().unwrap();
+            let selected_index = self
+                .predicate_list_state
+                .selected()
+                .expect("Failed to get selected predicate");
             self.finder.remove_predicate(selected_index);
         }
     }
 
     fn update_insertion(&mut self) {
-        let selected_index = self.predicate_list_state.selected().unwrap();
-        self.finder.predicates[selected_index].update(&self.insert_state.text);
+        let selected_index = self
+            .predicate_list_state
+            .selected()
+            .expect("Failed to get selected predicate");
+        self.finder
+            .update_predicate(selected_index, &self.insert_state.text);
         self.word_list_state.select(Some(0));
     }
 }

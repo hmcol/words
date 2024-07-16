@@ -12,3 +12,9 @@ helpful for analyzing word games like scrabble, wordle, etc
 - valid-wordle-words.txt via https://gist.github.com/dracos/dd0668f281e685bad51479e5acaadb93
 - wordlist.txt via https://dagshub.com/arjvik/wordle-wordlist
 - answerlist.txt via https://dagshub.com/arjvik/wordle-wordlist
+
+## todo
+- make file path editable
+- speed up rendering for large word lists
+- add regex predicate
+- handle errors properly

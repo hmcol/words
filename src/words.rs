@@ -9,7 +9,10 @@ pub struct WordFinder {
 
 impl Default for WordFinder {
     fn default() -> Self {
-        Self::from_file("./lists/dictionary.txt")
+        let mut wf = Self::from_file("./lists/dictionary.txt");
+        wf.add_predicate(2); // EndsWith
+        wf.update_predicate(0, "ing");
+        wf
     }
 }
 
@@ -60,6 +63,17 @@ impl WordFinder {
     pub fn add_predicate(&mut self, index: usize) {
         if let Some(p) = Predicate::from_index(index) {
             self.predicates.push(p);
+        }
+    }
+
+    pub fn get_predicate_string(&self, index: usize) -> String {
+        // TODO: handle out of bounds
+        self.predicates[index].get_string()
+    }
+
+    pub fn update_predicate(&mut self, index: usize, s: &str) {
+        if let Some(p) = self.predicates.get_mut(index) {
+            p.update(s);
         }
     }
 
