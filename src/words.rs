@@ -60,6 +60,10 @@ impl WordFinder {
 
     // -------------------------------------------------------------------------
 
+    pub fn iter_predicate_names(&self) -> impl Iterator<Item = &&str> {
+        crate::pred::PREDICATES.iter()
+    }
+
     pub fn add_predicate(&mut self, index: usize) {
         if let Some(p) = Predicate::from_index(index) {
             self.predicates.push(p);
