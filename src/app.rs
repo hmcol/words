@@ -3,7 +3,7 @@ use ratatui::{
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     prelude::*,
     text::ToLine,
-    widgets::{Block, Borders, Clear, List, ListState, Paragraph},
+    widgets::*,
 };
 use std::io;
 
@@ -251,6 +251,7 @@ impl Widget for &mut App {
             ])
             .areas(area);
 
+        // should figure out a better way to do this
         let popup_area = centered_rect(area, 50, 50);
 
         // header - app name
@@ -283,6 +284,7 @@ impl Widget for &mut App {
             .areas(content);
 
         self.render_words_pane(left_pane, buf);
+        // sorting should really be a dropdown or popup
         self.render_sorting_pane(middle_pane, buf);
         self.render_predicate_pane(right_pane, buf);
 
@@ -300,11 +302,16 @@ impl Widget for &mut App {
         // popup - possibly render a popup on top of everything
 
         if self.state.focus_pane == SelectableArea::NewPredicate {
-            
             self.render_new_predicate_pane(popup_area, buf);
         }
     }
 }
+
+// Panes -----------------------------------------------------------------------
+// these are visually self-contained areas of the app that can be focused on and
+// interacted with independently. only one can be selected at a time.
+
+// TODO: convert list entries to Spans?
 
 impl App {
     fn render_words_pane(&mut self, area: Rect, buf: &mut Buffer) {
@@ -410,7 +417,7 @@ impl App {
 ///
 /// taken from the ratatui book
 fn centered_rect(r: Rect, percent_x: u16, percent_y: u16) -> Rect {
-    let popup_layout = Layout::default()
+    let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Percentage((100 - percent_y) / 2),
@@ -426,5 +433,5 @@ fn centered_rect(r: Rect, percent_x: u16, percent_y: u16) -> Rect {
             Constraint::Percentage(percent_x),
             Constraint::Percentage((100 - percent_x) / 2),
         ])
-        .split(popup_layout[1])[1]
+        .split(layout[1])[1]
 }
