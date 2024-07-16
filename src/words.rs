@@ -1,18 +1,15 @@
-use crate::{pred::Predicate, sort::Sorter};
+use crate::pred::Predicate;
 
 #[derive(Debug)]
 pub struct WordFinder {
     pub file_path: String,
     pub word_list: Vec<String>,
     pub predicates: Vec<Predicate>,
-    pub sorter: Sorter,
 }
 
 impl Default for WordFinder {
     fn default() -> Self {
-        let mut wf = Self::from_file("./lists/dictionary.txt");
-        wf.predicates.push(crate::pred::Predicate::EndsWith("ing".to_string()));
-        wf
+        Self::from_file("./lists/dictionary.txt")
     }
 }
 
@@ -39,7 +36,7 @@ impl WordFinder {
         WordFinder {
             file_path: file_path.to_string(),
             word_list: words,
-            ..Default::default()
+            predicates: Vec::new(),
         }
     }
 
@@ -81,11 +78,5 @@ impl WordFinder {
         self.word_list
             .iter()
             .filter(move |word| self.predicates.iter().all(|f| f.matches(word)))
-    }
-
-    pub fn get_filtered_sorted(&self) -> Vec<&String> {
-        let mut word_vec: Vec<&String> = self.iter_filtered().collect();
-        word_vec.sort_by(|left, right| self.sorter.cmp(left, right));
-        word_vec
     }
 }

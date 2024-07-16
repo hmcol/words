@@ -9,7 +9,6 @@ use std::io;
 // -----------------------------------------------------------------------------
 
 mod pred;
-mod sort;
 mod tui;
 mod words;
 
@@ -47,7 +46,6 @@ pub struct App {
     exit: bool,
     finder: words::WordFinder,
     word_list_state: ListState,
-    sorting_list_state: ListState,
     predicate_list_state: ListState,
     new_predicate_list_state: ListState,
     selected_area: SelectableArea,
@@ -58,7 +56,6 @@ pub struct App {
 impl App {
     fn init(&mut self) {
         self.word_list_state.select(Some(0));
-        self.sorting_list_state.select(Some(0));
         self.predicate_list_state.select(Some(0));
     }
 
@@ -172,16 +169,16 @@ impl App {
 
     fn handle_right_arrow(&mut self) {
         match self.selected_area {
-            SelectableArea::Words => self.selected_area = SelectableArea::Sorting,
-            SelectableArea::Sorting => self.selected_area = SelectableArea::Predicates,
+            SelectableArea::Predicates => self.selected_area = SelectableArea::Words,
+            SelectableArea::Words => self.selected_area = SelectableArea::Predicates,
             _ => {}
         };
     }
 
     fn handle_left_arrow(&mut self) {
         match self.selected_area {
-            SelectableArea::Predicates => self.selected_area = SelectableArea::Sorting,
-            SelectableArea::Sorting => self.selected_area = SelectableArea::Words,
+            SelectableArea::Predicates => self.selected_area = SelectableArea::Words,
+            SelectableArea::Words => self.selected_area = SelectableArea::Predicates,
             _ => {}
         };
     }
@@ -193,9 +190,9 @@ impl App {
 
         match self.selected_area {
             SelectableArea::Predicates => self.predicate_list_state.select_next(),
-            SelectableArea::Sorting => self.sorting_list_state.select_next(),
             SelectableArea::Words => self.word_list_state.select_next(),
             SelectableArea::NewPredicate => self.new_predicate_list_state.select_next(),
+            _ => {},
         }
     }
 
@@ -206,9 +203,9 @@ impl App {
 
         match self.selected_area {
             SelectableArea::Predicates => self.predicate_list_state.select_previous(),
-            SelectableArea::Sorting => self.sorting_list_state.select_previous(),
             SelectableArea::Words => self.word_list_state.select_previous(),
             SelectableArea::NewPredicate => self.new_predicate_list_state.select_previous(),
+            _ => {},
         }
     }
 
@@ -331,13 +328,6 @@ impl Widget for &mut App {
 
 impl App {
     fn render_words_pane(&mut self, area: Rect, buf: &mut Buffer) {
-        // let words_vec = self.finder.get_filtered_sorted();
-
-        // let words: Vec<Line> = words_vec
-        //     .iter()
-        //     .map(|w| w.to_line().magenta())
-        //     .collect();
-
         let words: Vec<Line> = self
             .finder
             .iter_filtered()
@@ -349,7 +339,7 @@ impl App {
                 .title("Found Words")
                 .title_alignment(Alignment::Center),
         );
-
+ 
         if self.selected_area == SelectableArea::Words {
             list = list.highlight_style(Style::new().add_modifier(Modifier::REVERSED));
         }
@@ -377,11 +367,11 @@ impl App {
                 .title_alignment(Alignment::Center),
         );
 
-        if self.selected_area == SelectableArea::Sorting {
+        if self.selected_area == SelectableArea::Words {
             list = list.highlight_style(Style::new().add_modifier(Modifier::REVERSED));
         }
 
-        StatefulWidget::render(list, area, buf, &mut self.sorting_list_state);
+        StatefulWidget::render(list, area, buf, &mut self.word_list_state);
     }
 
     fn render_predicate_pane(&mut self, area: Rect, buf: &mut Buffer) {
