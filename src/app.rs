@@ -13,25 +13,12 @@ use std::io;
 pub struct App {
     exit: bool,
     finder: WordFinder,
-    word_list_state: ListState,
-    sort_list_state: ListState,
-    predicate_list_state: ListState,
-    new_predicate_list_state: ListState,
-    selected_area: SelectableArea,
-    input_mode: InputMode,
-    insert_state: InsertState,
+    state: State,
 }
 
 impl App {
-    fn init(&mut self) {
-        self.word_list_state.select(Some(0));
-        self.sort_list_state.select(Some(0));
-        self.predicate_list_state.select(Some(0));
-    }
-
     /// runs the application's main loop until the user quits
     pub fn run(&mut self, terminal: &mut tui::Tui) -> io::Result<()> {
-        self.init();
         while !self.exit {
             terminal.draw(|frame| self.render_frame(frame))?;
             self.handle_events()?;
@@ -56,6 +43,39 @@ impl App {
     }
 }
 
+// state =======================================================================
+
+#[derive(Debug)]
+struct State {
+    word_list: ListState,
+    sort_list: ListState,
+    pred_list: ListState,
+    new_pred_list: ListState,
+    focus_pane: SelectableArea,
+    input_mode: InputMode,
+    insert_buf: String,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        let mut state = Self {
+            word_list: Default::default(),
+            sort_list: Default::default(),
+            pred_list: Default::default(),
+            new_pred_list: Default::default(),
+            focus_pane: Default::default(),
+            input_mode: Default::default(),
+            insert_buf: Default::default(),
+        };
+
+        state.word_list.select(Some(0));
+        state.sort_list.select(Some(0));
+        state.pred_list.select(Some(0));
+
+        state
+    }
+}
+
 // key input handling ==========================================================
 
 #[derive(Debug, Default, PartialEq)]
@@ -74,30 +94,9 @@ enum InputMode {
     Insert,
 }
 
-#[derive(Debug, Default)]
-struct InsertState {
-    text: String,
-}
-
-impl InsertState {
-    fn new(text: &str) -> Self {
-        Self {
-            text: text.to_string(),
-        }
-    }
-
-    fn insert(&mut self, c: char) {
-        self.text.push(c);
-    }
-
-    fn backspace(&mut self) {
-        self.text.pop();
-    }
-}
-
 impl App {
     fn handle_key_event(&mut self, key_event: KeyEvent) {
-        match self.input_mode {
+        match self.state.input_mode {
             InputMode::Normal => self.handle_normal_mode(key_event),
             InputMode::Insert => self.handle_insert_mode(key_event),
         }
@@ -119,14 +118,14 @@ impl App {
     fn handle_insert_mode(&mut self, key_event: KeyEvent) {
         match key_event.code {
             KeyCode::Char(c) => {
-                self.insert_state.insert(c);
+                self.state.insert_buf.push(c);
                 self.update_insertion();
             }
             KeyCode::Enter => {
-                self.input_mode = InputMode::Normal;
+                self.state.input_mode = InputMode::Normal;
             }
             KeyCode::Backspace => {
-                self.insert_state.backspace();
+                self.state.insert_buf.pop();
                 self.update_insertion();
             }
             _ => {}
@@ -138,79 +137,81 @@ impl App {
     }
 
     fn handle_right_arrow(&mut self) {
-        match self.selected_area {
-            SelectableArea::Words => self.selected_area = SelectableArea::Sorting,
-            SelectableArea::Sorting => self.selected_area = SelectableArea::Predicates,
+        match self.state.focus_pane {
+            SelectableArea::Words => self.state.focus_pane = SelectableArea::Sorting,
+            SelectableArea::Sorting => self.state.focus_pane = SelectableArea::Predicates,
             _ => {}
         };
     }
 
     fn handle_left_arrow(&mut self) {
-        match self.selected_area {
-            SelectableArea::Predicates => self.selected_area = SelectableArea::Sorting,
-            SelectableArea::Sorting => self.selected_area = SelectableArea::Words,
+        match self.state.focus_pane {
+            SelectableArea::Predicates => self.state.focus_pane = SelectableArea::Sorting,
+            SelectableArea::Sorting => self.state.focus_pane = SelectableArea::Words,
             _ => {}
         };
     }
 
     fn handle_down_arrow(&mut self) {
-        if self.input_mode != InputMode::Normal {
+        if self.state.input_mode != InputMode::Normal {
             return;
         }
 
-        match self.selected_area {
-            SelectableArea::Predicates => self.predicate_list_state.select_next(),
-            SelectableArea::Sorting => self.sort_list_state.select_next(),
-            SelectableArea::Words => self.word_list_state.select_next(),
-            SelectableArea::NewPredicate => self.new_predicate_list_state.select_next(),
+        match self.state.focus_pane {
+            SelectableArea::Predicates => self.state.pred_list.select_next(),
+            SelectableArea::Sorting => self.state.sort_list.select_next(),
+            SelectableArea::Words => self.state.word_list.select_next(),
+            SelectableArea::NewPredicate => self.state.new_pred_list.select_next(),
         }
     }
 
     fn handle_up_arrow(&mut self) {
-        if self.input_mode != InputMode::Normal {
+        if self.state.input_mode != InputMode::Normal {
             return;
         }
 
-        match self.selected_area {
-            SelectableArea::Predicates => self.predicate_list_state.select_previous(),
-            SelectableArea::Sorting => self.sort_list_state.select_previous(),
-            SelectableArea::Words => self.word_list_state.select_previous(),
-            SelectableArea::NewPredicate => self.new_predicate_list_state.select_previous(),
+        match self.state.focus_pane {
+            SelectableArea::Predicates => self.state.pred_list.select_previous(),
+            SelectableArea::Sorting => self.state.sort_list.select_previous(),
+            SelectableArea::Words => self.state.word_list.select_previous(),
+            SelectableArea::NewPredicate => self.state.new_pred_list.select_previous(),
         }
     }
 
     fn handle_enter(&mut self) {
-        match self.selected_area {
+        match self.state.focus_pane {
             SelectableArea::Predicates => {
                 let selected_index = self
-                    .predicate_list_state
+                    .state
+                    .pred_list
                     .selected()
                     .expect("Failed to get selected predicate");
                 if selected_index == self.finder.predicates.len() {
-                    self.selected_area = SelectableArea::NewPredicate;
-                    self.new_predicate_list_state.select(Some(0))
+                    self.state.focus_pane = SelectableArea::NewPredicate;
+                    self.state.new_pred_list.select(Some(0))
                 } else {
-                    let s = self.finder.get_predicate_string(selected_index);
-                    self.insert_state = InsertState::new(&s);
-                    self.input_mode = InputMode::Insert;
+                    self.state.insert_buf = self.finder.get_predicate_string(selected_index);
+                    self.state.input_mode = InputMode::Insert;
                 }
             }
             SelectableArea::NewPredicate => {
                 let selected = self
-                    .new_predicate_list_state
+                    .state
+                    .new_pred_list
                     .selected()
                     .expect("Failed to get selected predicate");
                 self.finder.add_predicate(selected);
-                self.selected_area = SelectableArea::Predicates;
+                self.state.focus_pane = SelectableArea::Predicates;
             }
             _ => {}
         }
     }
 
     fn handle_delete(&mut self) {
-        if SelectableArea::Predicates == self.selected_area {
+        if SelectableArea::Predicates == self.state.focus_pane {
             let selected_index = self
-                .predicate_list_state
+                .state
+                .pred_list
                 .selected()
                 .expect("Failed to get selected predicate");
             self.finder.remove_predicate(selected_index);
@@ -219,12 +220,13 @@ impl App {
 
     fn update_insertion(&mut self) {
         let selected_index = self
-            .predicate_list_state
+            .state
+            .pred_list
             .selected()
             .expect("Failed to get selected predicate");
         self.finder
-            .update_predicate(selected_index, &self.insert_state.text);
-        self.word_list_state.select(Some(0));
+            .update_predicate(selected_index, &self.state.insert_buf);
+        self.state.word_list.select(Some(0));
     }
 }
 
@@ -277,7 +279,7 @@ impl Widget for &mut App {
 
         // footer - controls
 
-        let footer_text = match self.input_mode {
+        let footer_text = match self.state.input_mode {
             InputMode::Normal => "q: quit | ←/→: switch panes | ↑/↓: select | ↵: edit predicate",
             InputMode::Insert => " ←: backspace | ↵: save",
         };
@@ -288,7 +290,7 @@ impl Widget for &mut App {
 
         // popup - possibly render a popup on top of everything
 
-        if self.selected_area == SelectableArea::NewPredicate {
+        if self.state.focus_pane == SelectableArea::NewPredicate {
             let popup_area = centered_rect(area, 50, 50);
 
             Clear.render(popup_area, buf);
@@ -308,7 +310,7 @@ impl Widget for &mut App {
                 .block(popup_block)
                 .highlight_style(Style::new().add_modifier(Modifier::REVERSED));
 
-            StatefulWidget::render(list, popup_area, buf, &mut self.new_predicate_list_state);
+            StatefulWidget::render(list, popup_area, buf, &mut self.state.new_pred_list);
         }
     }
 }
@@ -327,11 +329,11 @@ impl App {
                 .title_alignment(Alignment::Center),
         );
 
-        if self.selected_area == SelectableArea::Words {
+        if self.state.focus_pane == SelectableArea::Words {
             list = list.highlight_style(Style::new().add_modifier(Modifier::REVERSED));
         }
 
-        StatefulWidget::render(list, area, buf, &mut self.word_list_state);
+        StatefulWidget::render(list, area, buf, &mut self.state.word_list);
     }
 
     fn render_sorting_pane(&mut self, area: Rect, buf: &mut Buffer) {
@@ -354,11 +356,11 @@ impl App {
                 .title_alignment(Alignment::Center),
         );
 
-        if self.selected_area == SelectableArea::Sorting {
+        if self.state.focus_pane == SelectableArea::Sorting {
             list = list.highlight_style(Style::new().add_modifier(Modifier::REVERSED));
         }
 
-        StatefulWidget::render(list, area, buf, &mut self.sort_list_state);
+        StatefulWidget::render(list, area, buf, &mut self.state.sort_list);
     }
 
     fn render_predicate_pane(&mut self, area: Rect, buf: &mut Buffer) {
@@ -377,17 +379,17 @@ impl App {
                 .title_alignment(Alignment::Center),
         );
 
-        if self.selected_area == SelectableArea::Predicates {
+        if self.state.focus_pane == SelectableArea::Predicates {
             let mut style = Style::new().add_modifier(Modifier::REVERSED);
 
-            if self.input_mode == InputMode::Insert {
+            if self.state.input_mode == InputMode::Insert {
                 style = style.add_modifier(Modifier::ITALIC);
             }
 
             list = list.highlight_style(style);
         }
 
-        StatefulWidget::render(list, area, buf, &mut self.predicate_list_state);
+        StatefulWidget::render(list, area, buf, &mut self.state.pred_list);
     }
 }
 
