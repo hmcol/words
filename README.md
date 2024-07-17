@@ -18,3 +18,4 @@ helpful for analyzing word games like scrabble, wordle, etc
 - speed up rendering for large word lists
 - add regex predicate
 - handle errors properly
+- add jokes (grevlex sorting, profanity predicate)

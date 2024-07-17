@@ -1,71 +1,55 @@
-use crate::pred::Predicate;
+use crate::{
+    ord::{WordOrder, ORDER_NAMES},
+    pred::{WordPredicate, PREDICATE_NAMES},
+};
 
 #[derive(Debug)]
 pub struct WordFinder {
     pub file_path: String,
     pub word_list: Vec<String>,
-    pub predicates: Vec<Predicate>,
+    pub predicates: Vec<WordPredicate>,
+    pub word_order: WordOrder,
 }
 
+/// this can just be derived, but i want the default word list until i make it user editable and
+/// at least one good predicate until its faster with bigger word lists
 impl Default for WordFinder {
     fn default() -> Self {
-        let mut wf = Self::from_file("./lists/dictionary.txt");
+        let mut wf = Self {
+            file_path: String::new(),
+            word_list: Vec::new(),
+            predicates: Vec::new(),
+            word_order: WordOrder::default(),
+        };
+
+        wf.load_file("./lists/dictionary.txt");
         wf.add_predicate(2); // EndsWith
         wf.update_predicate(0, "ing");
+
         wf
     }
 }
 
 impl WordFinder {
-    pub fn from_file(file_path: &str) -> WordFinder {
+    pub fn load_file(&mut self, file_path: &str) {
         let file = std::fs::read_to_string(file_path).expect("failed to read file");
 
-        let words = file
+        self.file_path = file_path.to_string();
+        self.word_list = file
             .split_whitespace() // assume one word per line
             .map(|w| w.to_string().to_lowercase()) // convert to lowercase
             .filter(|w| w.chars().all(|c| c.is_alphabetic())) // only alphabetic
             .collect::<Vec<String>>();
-
-        // let mut info_string = format!("found {} words in file {}", words.len(), file_path);
-
-        // for word in words.iter().take(10) {
-        //     info_string.push_str(&format!("\n{:?}", word));
-        // }
-
-        // info_string.push_str("\n...");
-
-        // log::info!("{}", info_string);
-
-        WordFinder {
-            file_path: file_path.to_string(),
-            word_list: words,
-            predicates: Vec::new(),
-        }
     }
 
-    // pub fn log_stats(&self) {
-    //     let word_lengths: Vec<usize> = self.word_list.iter().map(|word| word.len()).collect();
-
-    //     let mut length_counts = std::collections::HashMap::new();
-
-    //     for length in word_lengths.iter() {
-    //         let count = length_counts.entry(length).or_insert(0);
-    //         *count += 1;
-    //     }
-
-    //     for (length, count) in length_counts.iter() {
-    //         log::info!("{:02}: {}", length, count);
-    //     }
-    // }
-
-    // -------------------------------------------------------------------------
+    // predicates --------------------------------------------------------------
 
     pub fn iter_predicate_names(&self) -> impl Iterator<Item = &&str> {
-        crate::pred::PREDICATES.iter()
+        PREDICATE_NAMES.iter()
     }
 
     pub fn add_predicate(&mut self, index: usize) {
-        if let Some(p) = Predicate::from_index(index) {
+        if let Some(p) = WordPredicate::from_index(index) {
             self.predicates.push(p);
         }
     }
@@ -85,12 +69,23 @@ impl WordFinder {
         self.predicates.remove(index);
     }
 
-    // pub fn get_filtered_words(&self) -> Vec<&String> {
-    //     self.word_list
-    //         .iter()
-    //         .filter(|word| self.filters.iter().all(|f| f.matches(word)))
-    //         .collect()
-    // }
+    // word order --------------------------------------------------------------
+
+    pub fn iter_order_names(&self) -> impl Iterator<Item = &&str> {
+        ORDER_NAMES.iter()
+    }
+
+    pub fn set_order(&mut self, index: usize) {
+        if let Some(o) = WordOrder::from_index(index) {
+            self.word_order = o;
+        }
+    }
+
+    pub fn sort(&mut self) {
+        self.word_list.sort_by(|a, b| self.word_order.cmp(a, b));
+    }
+
+    // output
 
     pub fn iter_filtered(&self) -> impl Iterator<Item = &String> {
         self.word_list

@@ -199,13 +199,22 @@ impl App {
                     .state
                     .new_pred_list
                     .selected()
-                    .expect("Failed to get selected predicate");
+                    .expect("Failed to get selected new predicate");
                 self.finder.add_predicate(selected_index);
                 self.state.focus_pane = SelectableArea::Predicates;
 
                 // immediately being editing the new predicate
-                self.state.insert_buf = self.finder.get_predicate_string(selected_index);
+                self.state.insert_buf = String::new();
                 self.state.input_mode = InputMode::Insert;
+            }
+            SelectableArea::Sorting => {
+                let selected_index = self
+                    .state
+                    .sort_list
+                    .selected()
+                    .expect("Failed to get selected sorting");
+                self.finder.set_order(selected_index);
+                self.finder.sort();
             }
             _ => {}
         }
@@ -335,12 +344,11 @@ impl App {
     }
 
     fn render_sorting_pane(&mut self, area: Rect, buf: &mut Buffer) {
-        let items = vec![
-            "alphabetical".to_line(),
-            "reverse alphabetical".to_line(),
-            "longest -> shortest".to_line(),
-            "shortest -> longest".to_line(),
-        ];
+        let items: Vec<String> = self
+            .finder
+            .iter_order_names()
+            .map(|s| s.to_string())
+            .collect();
 
         // let words: Vec<Line> = self
         //     .finder
@@ -393,7 +401,7 @@ impl App {
         let items: Vec<Line> = self
             .finder
             .iter_predicate_names()
-            .map(|s| s.to_line())
+            .map(|s| s.to_line().blue())
             .collect();
 
         let block = Block::default()
