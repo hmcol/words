@@ -14,8 +14,7 @@ helpful for analyzing word games like scrabble, wordle, etc
 - answerlist.txt via https://dagshub.com/arjvik/wordle-wordlist
 
 ## todo
-- make file path editable
-- speed up rendering for large word lists
+- speed up rendering for large word lists (works fine on release build)
 - add regex predicate
 - handle errors properly
-- add jokes (grevlex sorting, profanity predicate)
+- add jokes (random/grevlex sorting, profanity predicate)

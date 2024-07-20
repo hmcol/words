@@ -85,6 +85,7 @@ enum SelectableArea {
     Words,
     NewPredicate,
     Sorting,
+    File,
 }
 
 #[derive(Debug, Default, PartialEq)]
@@ -111,6 +112,7 @@ impl App {
             KeyCode::Up => self.handle_up_arrow(),
             KeyCode::Enter => self.handle_enter(),
             KeyCode::Delete => self.handle_delete(),
+            KeyCode::Char('f') => self.handle_edit_file(),
             _ => {}
         }
     }
@@ -119,16 +121,18 @@ impl App {
         match key_event.code {
             KeyCode::Char(c) => {
                 self.state.insert_buf.push(c);
-                self.update_insertion();
             }
             KeyCode::Enter => {
                 self.state.input_mode = InputMode::Normal;
             }
             KeyCode::Backspace => {
                 self.state.insert_buf.pop();
-                self.update_insertion();
             }
             _ => {}
+        }
+
+        if self.state.focus_pane == SelectableArea::Predicates {
+            self.update_predicate();
         }
     }
 
@@ -162,6 +166,7 @@ impl App {
             SelectableArea::Sorting => self.state.sort_list.select_next(),
             SelectableArea::Words => self.state.word_list.select_next(),
             SelectableArea::NewPredicate => self.state.new_pred_list.select_next(),
+            _ => {}
         }
     }
 
@@ -175,6 +180,7 @@ impl App {
             SelectableArea::Sorting => self.state.sort_list.select_previous(),
             SelectableArea::Words => self.state.word_list.select_previous(),
             SelectableArea::NewPredicate => self.state.new_pred_list.select_previous(),
+            _ => {}
         }
     }
 
@@ -216,6 +222,11 @@ impl App {
                 self.finder.set_order(selected_index);
                 self.finder.sort();
             }
+            SelectableArea::File => {
+                self.finder.load_file(&self.state.insert_buf);
+                self.state.focus_pane = SelectableArea::Words;
+                self.state.input_mode = InputMode::Normal;
+            }
             _ => {}
         }
     }
@@ -231,8 +242,14 @@ impl App {
         }
     }
 
+    fn handle_edit_file(&mut self) {
+        self.state.focus_pane = SelectableArea::File;
+        self.state.insert_buf.clone_from(&self.finder.file_path);
+        self.state.input_mode = InputMode::Insert;
+    }
+
     /// i dont like this function
-    fn update_insertion(&mut self) {
+    fn update_predicate(&mut self) {
         let selected_index = self
             .state
             .pred_list
@@ -272,10 +289,13 @@ impl Widget for &mut App {
 
         // subheader - file path to word list
 
-        let path_text = Line::from(vec![
-            " Word List: ".into(),
-            self.finder.file_path.clone().yellow(),
-        ]);
+        let mut path = self.finder.file_path.clone().yellow();
+
+        if self.state.focus_pane == SelectableArea::File {
+            path = self.state.insert_buf.clone().yellow().italic().reversed();
+        }
+
+        let path_text = Line::from(vec![" Word List: ".into(), path]);
 
         Paragraph::new(path_text)
             .block(Block::new().borders(Borders::ALL))
@@ -299,10 +319,24 @@ impl Widget for &mut App {
 
         // footer - controls
 
-        let footer_text = match self.state.input_mode {
-            InputMode::Normal => "q: quit | ←/→: switch panes | ↑/↓: select | ↵: edit predicate",
+        let mut footer_text = match self.state.input_mode {
+            InputMode::Normal => "q: quit | ←/→: switch panes | ↑/↓: select | f: edit file path",
             InputMode::Insert => " ←: backspace | ↵: save",
-        };
+        }
+        .to_string();
+
+        match self.state.focus_pane {
+            SelectableArea::File => {
+                footer_text.push_str(" | ↵: save file path");
+            }
+            SelectableArea::Sorting => {
+                footer_text.push_str(" | ↵: set sorting");
+            }
+            SelectableArea::Predicates => {
+                footer_text.push_str(" | ↵: edit predicate | del: remove predicate");
+            }
+            _ => {}
+        }
 
         Paragraph::new(footer_text)
             .alignment(Alignment::Center)

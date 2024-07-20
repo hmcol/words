@@ -10,12 +10,12 @@ pub enum WordOrder {
     Random,
 }
 
-pub const ORDER_NAMES: [&str; 5] = [
+pub const ORDER_NAMES: [&str; 4] = [
     "Alphabetical",
-    "RevAlphabetical",
-    "Length",
-    "RevLength",
-    "Random",
+    "Reverse Alphabetical",
+    "Shortest First",
+    "Longest First",
+    // "Random",
 ];
  
 impl WordOrder {

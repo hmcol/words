@@ -22,7 +22,7 @@ impl Default for WordFinder {
             word_order: WordOrder::default(),
         };
 
-        wf.load_file("./lists/dictionary.txt");
+        wf.load_file("./lists/words.txt");
         wf.add_predicate(2); // EndsWith
         wf.update_predicate(0, "ing");
 
@@ -32,14 +32,18 @@ impl Default for WordFinder {
 
 impl WordFinder {
     pub fn load_file(&mut self, file_path: &str) {
-        let file = std::fs::read_to_string(file_path).expect("failed to read file");
-
-        self.file_path = file_path.to_string();
-        self.word_list = file
-            .split_whitespace() // assume one word per line
-            .map(|w| w.to_string().to_lowercase()) // convert to lowercase
-            .filter(|w| w.chars().all(|c| c.is_alphabetic())) // only alphabetic
-            .collect::<Vec<String>>();
+        // do something better here for error handling, just don't want to crash rn
+        if let Ok(file) = std::fs::read_to_string(file_path) {
+            self.file_path = file_path.to_string();
+            self.word_list = file
+                .split_whitespace() // assume one word per line
+                .map(|w| w.to_string().to_lowercase()) // convert to lowercase
+                .filter(|w| w.chars().all(|c| c.is_alphabetic())) // only alphabetic
+                .collect::<Vec<String>>();
+        } else {
+            self.file_path = String::new();
+            self.word_list = Vec::new();
+        }
     }
 
     // predicates --------------------------------------------------------------
