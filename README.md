@@ -4,6 +4,12 @@ little tool for finding words that satisfy various predicates
 
 helpful for analyzing word games like scrabble, wordle, etc
 
+# how to use
+
+- download "word finder.zip" from release v1.0.0
+- extract the folder inside and run "words.exe"
+- some word lists are included. any new ones can be put in the "lists" folder
+- keyboard controls are shown in the application
 
 ## word lists
 - words.txt via https://github.com/dwyl/english-words
